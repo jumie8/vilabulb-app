@@ -177,7 +177,7 @@ export default function HomePage() {
     if (!supabase) return;
     let alive = true;
     const loadFeed = async () => {
-      const { data, error } = await supabase.from("videos").select("id,user_id,caption,video_url,created_at,profiles!videos_user_id_fkey(username,display_name)").eq("status","published").eq("visibility","public").order("created_at",{ascending:false}).limit(30);
+      const { data, error } = await supabase!.from("videos").select("id,user_id,caption,video_url,created_at,profiles!videos_user_id_fkey(username,display_name)").eq("status","published").eq("visibility","public").order("created_at",{ascending:false}).limit(30);
       if (!alive) return;
       if (error) { setFeedNotice("Could not load community videos yet."); return; }
       const mapped = (data ?? []).map((item: any) => ({ id:item.id, userId:item.user_id, user:item.profiles?.username || item.profiles?.display_name || "creator", caption:item.caption || "", sound:"Original sound", tag:"#vilabulb", url:item.video_url }));
