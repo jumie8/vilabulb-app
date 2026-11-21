@@ -41,6 +41,8 @@ export default function HomePage() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [authMessage, setAuthMessage] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
+  const [otpMode, setOtpMode] = useState(false);
+  const [otp, setOtp] = useState("");
 
   useEffect(() => {
     if (!supabase) return;
@@ -79,12 +81,13 @@ export default function HomePage() {
           setAuthMessage("An account with this email already exists. If you have not confirmed it yet, check your inbox and spam folder for the VILABULB confirmation email. Then log in.");
           return;
         }
-        // Supabase has accepted the signup. With email confirmation enabled,
-        // the user must click the email link before a session can be created.
-        setAuthMessage(data.session
-          ? "Your VILABULB account is ready! You are signed in."
-          : `Signup accepted for ${email.trim()}. Check your inbox and spam folder for the confirmation link, then return here and log in. Do not submit signup again.`);
-        if (data.session) setAuthOpen(false);
+        if (data.session) {
+          setAuthMessage("Your VILABULB account is ready! You are signed in.");
+          setAuthOpen(false);
+        } else {
+          setOtpMode(true);
+          setAuthMessage(`We sent a 6-digit verification code to ${email.trim()}. Enter the code from your email below to finish creating your account.`);
+        }
       } else {
         const { error } = await withAuthTimeout(supabase.auth.signInWithPassword({ email, password }));
         if (error) throw error;
@@ -99,6 +102,33 @@ export default function HomePage() {
       } else {
         setAuthMessage(message);
       }
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleVerifyOtp = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!supabase) return;
+    setAuthBusy(true);
+    setAuthMessage("");
+    try {
+      const { data, error } = await withAuthTimeout(supabase.auth.verifyOtp({
+        email: email.trim().toLowerCase(),
+        token: otp.trim(),
+        type: "signup"
+      }));
+      if (error) throw error;
+      if (data.session) {
+        setCurrentUser(data.user?.email ?? email);
+        setAuthOpen(false);
+        setOtpMode(false);
+        setOtp("");
+      } else {
+        setAuthMessage("The code was accepted, but no session was returned. Please log in.");
+      }
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : "That code could not be verified. Check it and try again.");
     } finally {
       setAuthBusy(false);
     }
@@ -191,7 +221,7 @@ export default function HomePage() {
       </div>
     </section>
     <nav className="mobile-nav"><a className="active"><Home/><span>Home</span></a><a><Compass/><span>Discover</span></a><button onClick={() => setUploadOpen(true)}><Plus/></button><a><MessageCircle/><span>Inbox</span></a><a><UserRound/><span>Profile</span></a></nav>
-    {authOpen && <div className="modal-backdrop" onClick={() => setAuthOpen(false)}><div className="upload-modal" onClick={e => e.stopPropagation()}><button className="close-modal" onClick={() => setAuthOpen(false)}><X/></button><div className="upload-icon"><UserRound/></div><h2>{authMode === "signup" ? "Join VILABULB" : "Welcome back"}</h2><p>{authMode === "signup" ? "Create your creator account." : "Log in to your account."}</p><form onSubmit={handleAuth} className="auth-form">{authMode === "signup" && <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" autoComplete="username" required/>}<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" autoComplete="email" required/><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password (at least 6 characters)" autoComplete={authMode === "signup" ? "new-password" : "current-password"} minLength={6} required/><button className="signup-button wide" type="submit" disabled={authBusy}>{authBusy ? "Please wait..." : authMode === "signup" ? "Create account" : "Log in"}</button></form><div className="auth-divider"><span>or</span></div><button type="button" className="google-signin" onClick={handleGoogleSignIn} disabled={authBusy}><span className="google-g">G</span> Continue with Google</button>{authMessage && <p role="status">{authMessage}</p>}<p><button className="text-switch" onClick={() => { setAuthMode(authMode === "signup" ? "login" : "signup"); setAuthMessage(""); }}>{authMode === "signup" ? "Already have an account? Log in" : "New to VILABULB? Sign up"}</button></p></div></div>}
+    {authOpen && <div className="modal-backdrop" onClick={() => setAuthOpen(false)}><div className="upload-modal" onClick={e => e.stopPropagation()}><button className="close-modal" onClick={() => setAuthOpen(false)}><X/></button><div className="upload-icon"><UserRound/></div><h2>{authMode === "signup" ? "Join VILABULB" : "Welcome back"}</h2><p>{authMode === "signup" ? "Create your creator account." : "Log in to your account."}</p>{otpMode ? <><form onSubmit={handleVerifyOtp} className="auth-form"><input inputMode="numeric" autoComplete="one-time-code" value={otp} onChange={e => setOtp(e.target.value.replace(/\\D/g, "").slice(0, 6))} placeholder="Enter 6-digit email code" minLength={6} maxLength={6} required/><button className="signup-button wide" type="submit" disabled={authBusy || otp.length !== 6}>{authBusy ? "Verifying..." : "Verify code and create account"}</button></form><p className="auth-hint">Check your inbox and spam folder. Keep this screen open while you enter the code.</p></> : <><form onSubmit={handleAuth} className="auth-form">{authMode === "signup" && <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" autoComplete="username" required/>}<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" autoComplete="email" required/><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password (at least 6 characters)" autoComplete={authMode === "signup" ? "new-password" : "current-password"} minLength={6} required/><button className="signup-button wide" type="submit" disabled={authBusy}>{authBusy ? "Please wait..." : authMode === "signup" ? "Create account" : "Log in"}</button></form><div className="auth-divider"><span>or</span></div><button type="button" className="google-signin" onClick={handleGoogleSignIn} disabled={authBusy}><span className="google-g">G</span> Continue with Google</button></>}{authMessage && <p role="status">{authMessage}</p>}<p><button className="text-switch" onClick={() => { setOtpMode(false); setOtp(""); setAuthMode(authMode === "signup" ? "login" : "signup"); setAuthMessage(""); }}>{otpMode ? "Back to sign up" : authMode === "signup" ? "Already have an account? Log in" : "New to VILABULB? Sign up"}</button></p></div></div>}
     {uploadOpen && <div className="modal-backdrop" onClick={() => setUploadOpen(false)}><div className="upload-modal" onClick={e => e.stopPropagation()}><button className="close-modal" onClick={() => setUploadOpen(false)}><X/></button><div className="upload-icon"><Plus/></div><h2>Your next moment starts here</h2><p>Video uploading will be connected when we set up creator accounts and secure video storage.</p><button className="signup-button wide" onClick={() => setUploadOpen(false)}>Got it</button></div></div>}
     {commentsOpen && <div className="modal-backdrop" onClick={() => setCommentsOpen(false)}><div className="upload-modal" onClick={e => e.stopPropagation()}><button className="close-modal" onClick={() => setCommentsOpen(false)}><X/></button><h2>Comments</h2><p>Comments will be available after member accounts and the database are connected.</p><button className="signup-button wide" onClick={() => setCommentsOpen(false)}>Close</button></div></div>}
   </main>;
