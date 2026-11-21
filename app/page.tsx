@@ -50,17 +50,22 @@ export default function HomePage() {
     try {
       if (authMode === "signup") {
         const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim().toLowerCase(),
+          password,
+          options: {
+            data: {
+              username: cleanUsername || null,
+              display_name: username.trim() || email.trim().split("@")[0]
+            }
+          }
+        });
         if (error) throw error;
-        if (data.user) {
-          const { error: profileError } = await supabase.from("profiles").upsert({
-            id: data.user.id,
-            username: cleanUsername || null,
-            display_name: username.trim() || email.split("@")[0]
-          });
-          if (profileError) throw profileError;
-        }
-        setAuthMessage(data.session ? "Your VILABULB account is ready!" : "Check your email to confirm your account, then log in.");
+        // The database creates the profile automatically when auth.users receives
+        // a new account, so this works even when email confirmation is enabled.
+        setAuthMessage(data.session
+          ? "Your VILABULB account is ready! You can now log in."
+          : "Your account request was received. Check your email for the confirmation link before logging in.");
         if (data.session) setAuthOpen(false);
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -68,7 +73,14 @@ export default function HomePage() {
         setAuthOpen(false);
       }
     } catch (error) {
-      setAuthMessage(error instanceof Error ? error.message : "Something went wrong. Please try again.");
+      const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";
+      if (/rate limit|security purposes|after \d+ seconds|email rate/i.test(message)) {
+        setAuthMessage("For account security, Supabase is temporarily limiting signup requests. Please wait for the countdown to finish, then try once. If it keeps happening, wait a little longer before retrying.");
+      } else if (/already registered|already been registered|user already/i.test(message)) {
+        setAuthMessage("An account with this email may already exist. Choose Log in instead.");
+      } else {
+        setAuthMessage(message);
+      }
     } finally {
       setAuthBusy(false);
     }
