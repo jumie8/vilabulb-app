@@ -1,6 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
+import { supabase } from "../lib/supabase";
 import { Home, Compass, Users, Plus, MessageCircle, UserRound, Search, Heart, MessageSquare, Bookmark, Share2, Music2, Volume2, VolumeX, Flame, X, Play } from "lucide-react";
 
 const sampleVideo = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
@@ -19,6 +21,64 @@ export default function HomePage() {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
   const [videoError, setVideoError] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("signup");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [authMessage, setAuthMessage] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => setCurrentUser(data.session?.user.email ?? null));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user.email ?? null);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const handleAuth = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!supabase) {
+      setAuthMessage("Supabase is not configured yet. Add the two environment variables in Netlify.");
+      return;
+    }
+    setAuthBusy(true);
+    setAuthMessage("");
+    try {
+      if (authMode === "signup") {
+        const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        if (data.user) {
+          const { error: profileError } = await supabase.from("profiles").upsert({
+            id: data.user.id,
+            username: cleanUsername || null,
+            display_name: username.trim() || email.split("@")[0]
+          });
+          if (profileError) throw profileError;
+        }
+        setAuthMessage(data.session ? "Your VILABULB account is ready!" : "Check your email to confirm your account, then log in.");
+        if (data.session) setAuthOpen(false);
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        setAuthOpen(false);
+      }
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : "Something went wrong. Please try again.");
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setCurrentUser(null);
+  };
   const touchStart = useRef<number | null>(null);
   const video = videos[active];
   const toggleLike = () => setLiked(v => v.includes(active) ? v.filter(i => i !== active) : [...v, active]);
@@ -53,7 +113,7 @@ export default function HomePage() {
       <header className="topbar">
         <div className="mobile-brand"><span className="brand-mark">V</span> VILABULB</div>
         <div className="search-wrap"><Search size={18}/><input aria-label="Search" placeholder="Search videos, creators and sounds"/></div>
-        <button className="login-button">Log in</button><button className="signup-button">Sign up</button>
+        <button className="login-button" onClick={() => { setAuthMode("login"); setAuthMessage(""); setAuthOpen(true); }}>{currentUser ? "Account" : "Log in"}</button>{currentUser ? <button className="signup-button" onClick={handleLogout}>Log out</button> : <button className="signup-button" onClick={() => { setAuthMode("signup"); setAuthMessage(""); setAuthOpen(true); }}>Sign up</button>}
       </header>
       <div className="feed-heading"><div><span className="eyebrow"><Flame size={14}/> YOUR DAILY SPARK</span><h1>For You</h1><p>Fresh videos picked to brighten your scroll.</p></div><div className="feed-tabs"><button className="tab active">For You</button><button className="tab">Following</button></div></div>
       <div className="feed-layout" id="feed">
@@ -82,6 +142,7 @@ export default function HomePage() {
       </div>
     </section>
     <nav className="mobile-nav"><a className="active"><Home/><span>Home</span></a><a><Compass/><span>Discover</span></a><button onClick={() => setUploadOpen(true)}><Plus/></button><a><MessageCircle/><span>Inbox</span></a><a><UserRound/><span>Profile</span></a></nav>
+    {authOpen && <div className="modal-backdrop" onClick={() => setAuthOpen(false)}><div className="upload-modal" onClick={e => e.stopPropagation()}><button className="close-modal" onClick={() => setAuthOpen(false)}><X/></button><div className="upload-icon"><UserRound/></div><h2>{authMode === "signup" ? "Join VILABULB" : "Welcome back"}</h2><p>{authMode === "signup" ? "Create your creator account." : "Log in to your account."}</p><form onSubmit={handleAuth} className="auth-form">{authMode === "signup" && <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" autoComplete="username" required/>}<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" autoComplete="email" required/><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password (at least 6 characters)" autoComplete={authMode === "signup" ? "new-password" : "current-password"} minLength={6} required/><button className="signup-button wide" type="submit" disabled={authBusy}>{authBusy ? "Please wait..." : authMode === "signup" ? "Create account" : "Log in"}</button></form>{authMessage && <p role="status">{authMessage}</p>}<p><button className="text-switch" onClick={() => { setAuthMode(authMode === "signup" ? "login" : "signup"); setAuthMessage(""); }}>{authMode === "signup" ? "Already have an account? Log in" : "New to VILABULB? Sign up"}</button></p></div></div>}
     {uploadOpen && <div className="modal-backdrop" onClick={() => setUploadOpen(false)}><div className="upload-modal" onClick={e => e.stopPropagation()}><button className="close-modal" onClick={() => setUploadOpen(false)}><X/></button><div className="upload-icon"><Plus/></div><h2>Your next moment starts here</h2><p>Video uploading will be connected when we set up creator accounts and secure video storage.</p><button className="signup-button wide" onClick={() => setUploadOpen(false)}>Got it</button></div></div>}
     {commentsOpen && <div className="modal-backdrop" onClick={() => setCommentsOpen(false)}><div className="upload-modal" onClick={e => e.stopPropagation()}><button className="close-modal" onClick={() => setCommentsOpen(false)}><X/></button><h2>Comments</h2><p>Comments will be available after member accounts and the database are connected.</p><button className="signup-button wide" onClick={() => setCommentsOpen(false)}>Close</button></div></div>}
   </main>;
