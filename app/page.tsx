@@ -169,7 +169,7 @@ export default function HomePage() {
     return matchesSearch && matchesFeed;
   });
   const safeActive = visibleVideos.length ? active % visibleVideos.length : 0;
-  const video = visibleVideos[safeActive];
+  const video = visibleVideos[safeActive] ?? videos[0];
   const toggleLike = () => setLiked(v => v.includes(safeActive) ? v.filter(i => i !== safeActive) : [...v, safeActive]);
   const toggleSave = () => setSaved(v => v.includes(safeActive) ? v.filter(i => i !== safeActive) : [...v, safeActive]);
   const toggleFollow = () => setFollowing(v => v.includes(video.user) ? v.filter(x => x !== video.user) : [...v, video.user]);
@@ -210,17 +210,17 @@ export default function HomePage() {
           {!video ? <div className="video-fallback"><Search size={38}/><strong>{feedMode === "following" ? "No followed creators yet" : "No matching videos"}</strong><span>{feedMode === "following" ? "Follow creators to build your Following feed." : "Try another search."}</span><button onClick={() => { setSearchQuery(""); setFeedMode("for-you"); }}>Explore videos</button></div> : !videoError ? <video key={video.url + active} className="video" src={video.url} autoPlay muted={!soundOn} loop playsInline controls={false} preload="auto" onError={() => setVideoError(true)} /> : <div className="video-fallback"><Play size={42}/><strong>Video preview couldn't load</strong><span>Check your connection and try the next clip.</span><button onClick={() => { setVideoError(false); }}>Try again</button></div>}
           <div className="video-shade"/>
           <div className="video-top"><span className="quality-pill"><span/> VILA PICKS</span><button className="sound-button" aria-label={soundOn ? "Mute video" : "Turn sound on"} onClick={() => setSoundOn(v => !v)}>{soundOn ? <Volume2 size={18}/> : <VolumeX size={18}/>}</button></div>
-          <div className="video-copy">
+          {visibleVideos.length > 0 && <div className="video-copy">
             <div className="creator-row"><div className="avatar">{video.user[0].toUpperCase()}</div><strong>@{video.user}</strong><button className={following.includes(video.user) ? "follow following" : "follow"} onClick={toggleFollow}>{following.includes(video.user) ? "Following" : "Follow"}</button></div>
             <p>{video.caption}</p><p className="video-tags">{video.tag} <span>#vilabulb</span></p>
             <div className="sound-line"><Music2 size={15}/><span>{video.sound}</span></div>
           </div>
-          <div className="video-actions">
+          {visibleVideos.length > 0 && <div className="video-actions">
             <button onClick={toggleLike} className={liked.includes(active) ? "action liked" : "action"}><span><Heart fill={liked.includes(active) ? "currentColor" : "none"}/></span><b>{liked.includes(active) ? "1.3K" : "1.2K"}</b></button>
             <button className="action" onClick={() => setCommentsOpen(true)}><span><MessageSquare/></span><b>{commentItems[safeActive]?.length ?? 0} comments</b></button>
             <button onClick={toggleSave} className={saved.includes(active) ? "action liked" : "action"}><span><Bookmark fill={saved.includes(active) ? "currentColor" : "none"}/></span><b>{saved.includes(active) ? "Saved" : "Save"}</b></button>
             <button className="action" onClick={() => { if (navigator.share) navigator.share({ title: "VILABULB", text: video.caption, url: window.location.href }).catch(() => {}); else navigator.clipboard?.writeText(window.location.href); }}><span><Share2/></span><b>Share</b></button>
-          </div>
+          </div>}
         </div>
         <div className="feed-controls"><button onClick={previous} aria-label="Previous video">↑</button><button onClick={next} aria-label="Next video">↓</button></div>
         <aside className="right-rail">
