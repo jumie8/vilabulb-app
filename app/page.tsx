@@ -202,14 +202,15 @@ export default function HomePage() {
     return () => { alive = false; };
   }, [currentUserId, databaseVideos]);
   const touchStart = useRef<number | null>(null);
-  const sourceVideos = databaseVideos.length ? databaseVideos : videos;
+  // Show only real community uploads. Demo clips have no database IDs, so likes/follows/comments cannot sync for them.
+  const sourceVideos = databaseVideos;
   const visibleVideos = sourceVideos.filter(item => {
     const matchesSearch = `${item.user} ${item.caption} ${item.tag} ${item.sound}`.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFeed = feedMode === "for-you" || following.includes(item.user);
     return matchesSearch && matchesFeed;
   });
   const safeActive = visibleVideos.length ? active % visibleVideos.length : 0;
-  const video = visibleVideos[safeActive] ?? videos[0];
+  const video = visibleVideos[safeActive];
   const toggleLike = async () => {
     if (!currentUserId) { setAuthMode("login"); setAuthMessage("Log in to like videos."); setAuthOpen(true); return; }
     const target = video as any;
@@ -268,7 +269,7 @@ export default function HomePage() {
       <div className="feed-heading"><div><span className="eyebrow"><Flame size={14}/> YOUR DAILY SPARK</span><h1>For You</h1><p>Fresh videos picked to brighten your scroll.</p></div><div className="feed-tabs"><button className={feedMode === "for-you" ? "tab active" : "tab"} onClick={() => { setFeedMode("for-you"); setActive(0); }}>For You</button><button className={feedMode === "following" ? "tab active" : "tab"} onClick={() => { setFeedMode("following"); setActive(0); }}>Following</button></div></div>
       {feedNotice && <p className="feed-notice" role="status">{feedNotice}</p>}<div className="feed-layout" id="feed">
         <div className="video-stage" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-          {!video ? <div className="video-fallback"><Search size={38}/><strong>{feedMode === "following" ? "No followed creators yet" : "No matching videos"}</strong><span>{feedMode === "following" ? "Follow creators to build your Following feed." : "Try another search."}</span><button onClick={() => { setSearchQuery(""); setFeedMode("for-you"); }}>Explore videos</button></div> : !videoError ? <video key={video.url + active} className="video" src={video.url} autoPlay muted={!soundOn} loop playsInline controls={false} preload="auto" onError={() => setVideoError(true)} /> : <div className="video-fallback"><Play size={42}/><strong>Video preview couldn't load</strong><span>Check your connection and try the next clip.</span><button onClick={() => { setVideoError(false); }}>Try again</button></div>}
+          {!video ? <div className="video-fallback"><Search size={38}/><strong>{feedMode === "following" ? "No followed creators yet" : searchQuery ? "No matching videos" : "No community videos yet"}</strong><span>{feedMode === "following" ? "Follow creators after real videos appear in the feed." : searchQuery ? "Try another search." : "Be the first creator to upload a video to VILABULB."}</span><button onClick={() => { if (searchQuery) { setSearchQuery(""); setFeedMode("for-you"); } else { setUploadOpen(true); } }}>{searchQuery ? "Explore videos" : "Upload your first video"}</button></div> : !videoError ? <video key={video.url + active} className="video" src={video.url} autoPlay muted={!soundOn} loop playsInline controls={false} preload="auto" onError={() => setVideoError(true)} /> : <div className="video-fallback"><Play size={42}/><strong>Video preview couldn't load</strong><span>Check your connection and try the next clip.</span><button onClick={() => { setVideoError(false); }}>Try again</button></div>}
           <div className="video-shade"/>
           <div className="video-top"><span className="quality-pill"><span/> VILA PICKS</span><button className="sound-button" aria-label={soundOn ? "Mute video" : "Turn sound on"} onClick={() => setSoundOn(v => !v)}>{soundOn ? <Volume2 size={18}/> : <VolumeX size={18}/>}</button></div>
           {visibleVideos.length > 0 && <div className="video-copy">
