@@ -44,3 +44,15 @@
 .trend-button{width:100%;text-align:left;border:0;background:transparent;color:inherit;cursor:pointer;font:inherit}
 .trend-button:hover{background:#ffffff08}
 .rail-title button{border:0;background:transparent;color:#a98aff;font-size:10px;padding:0;cursor:pointer}
+
+/* Live rooms */
+.live-start-form{display:flex;gap:10px;align-items:center;margin:22px 0;padding:14px;border:1px solid #30313d;border-radius:14px;background:#151720}
+.live-start-form input{flex:1;min-width:0;background:#0d0e14;border:1px solid #343644;border-radius:10px;padding:13px;color:#fff;font:inherit}
+.live-start-form .signup-button{white-space:nowrap}
+.live-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:20px 0}
+.live-card{display:flex;flex-direction:column;gap:9px;padding:17px;border-radius:14px;background:#171923;border:1px solid #34313f;min-width:0}
+.live-card strong{font-size:16px;overflow-wrap:anywhere}
+.live-card p,.live-card small{margin:0;color:var(--muted);font-size:12px}
+.live-badge{align-self:flex-start;color:#ff668d;font-weight:800;font-size:11px;letter-spacing:.08em}
+.live-waiting{font-size:12px;color:#a99aff}
+@media(max-width:700px){.live-start-form{align-items:stretch;flex-direction:column}.live-start-form input,.live-start-form .signup-button{width:100%}.mobile-nav{grid-template-columns:repeat(6,minmax(0,1fr))}.mobile-nav button{min-width:0;font-size:8px}}
