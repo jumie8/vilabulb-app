@@ -17,3 +17,26 @@
 .upload-backdrop .upload-modal{z-index:1001;max-height:calc(100dvh - 36px);overflow-y:auto;overscroll-behavior:contain}
 .mobile-nav{z-index:10}
 @media(max-width:700px){.top-create-button{padding:9px 10px;font-size:11px}.topbar{gap:6px}.upload-backdrop{padding:12px}.upload-backdrop .upload-modal{padding:28px 22px}}
+
+/* Functional navigation screens */
+.side-links .side-link{width:100%;border:0;background:transparent;text-align:left;cursor:pointer;font-size:14px}
+.app-panel{max-width:980px;margin:32px auto;padding:26px;border:1px solid var(--line);border-radius:18px;background:#11131a;min-height:420px}
+.app-panel h1{font:700 28px 'Space Grotesk';margin:0 0 8px}
+.app-panel>p{color:var(--muted);font-size:13px;margin:0 0 22px}
+.creator-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:13px;margin-top:18px}
+.creator-card{background:#171923;border:1px solid #30313d;border-radius:14px;padding:16px;display:flex;flex-direction:column;align-items:flex-start;gap:9px;min-width:0}
+.creator-card>p{font-size:12px;color:var(--muted);margin:0;overflow-wrap:anywhere}
+.creator-card .follow{margin-top:4px}
+.empty-panel{min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;color:var(--muted);padding:25px;border:1px dashed #3b3d4a;border-radius:14px}
+.empty-panel strong{color:#fff}
+.empty-panel span{font-size:12px;max-width:360px;line-height:1.6}
+.profile-summary{display:flex;align-items:center;gap:16px;padding:18px 0 28px;border-bottom:1px solid var(--line);margin-bottom:24px}
+.profile-avatar{width:64px;height:64px;font-size:24px;flex-shrink:0}
+.profile-summary p{color:var(--muted);font-size:13px;margin:6px 0}
+.profile-summary small{color:#8e91a0}
+.profile-video{width:100%;aspect-ratio:9/14;object-fit:cover;border-radius:10px;background:#08090d}
+.app-panel h2{font:600 18px 'Space Grotesk'}
+.mobile-nav button{border:0;background:transparent;color:#858896;display:grid;justify-items:center;align-content:center;gap:3px;font-size:9px;min-width:48px;padding:0}
+.mobile-nav button.active{color:#fff}
+.mobile-nav button[aria-label="Create video"]{width:42px;height:35px;min-width:42px;border-radius:9px;color:white;background:linear-gradient(100deg,#ff4c8b,#a66cff)}
+@media(max-width:700px){.app-panel{margin:20px 0;padding:19px 15px;min-height:55vh}.app-panel h1{font-size:24px}.creator-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.creator-card{padding:12px}.profile-summary{align-items:flex-start}}
