@@ -53,6 +53,11 @@ export default function HomePage() {
   const [feedMode, setFeedMode] = useState<"for-you" | "following">("for-you");
   const [commentDraft, setCommentDraft] = useState("");
   const [commentItems, setCommentItems] = useState<Record<number, string[]>>({});
+  const [activeView, setActiveView] = useState<"home"|"discover"|"inbox"|"profile">("home");
+  const [creatorProfiles, setCreatorProfiles] = useState<any[]>([]);
+  const [myProfile, setMyProfile] = useState<any>(null);
+  const [myUploads, setMyUploads] = useState<any[]>([]);
+  const [inboxCount, setInboxCount] = useState(0);
 
   useEffect(() => {
     if (!supabase) return;
@@ -199,6 +204,27 @@ export default function HomePage() {
       setSaved(databaseVideos.map((row:any,index:number) => saveIds.has(row.id) ? index : -1).filter((index:number) => index >= 0));
     };
     loadMyActivity();
+    return () => { alive = false; };
+  }, [currentUserId, databaseVideos]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    let alive = true;
+    supabase.from("profiles").select("id,username,display_name,bio,avatar_url").order("created_at",{ascending:false}).limit(50)
+      .then(({data}) => { if (alive) setCreatorProfiles(data ?? []); });
+    return () => { alive = false; };
+  }, []);
+  useEffect(() => {
+    if (!supabase || !currentUserId) { setMyProfile(null); setMyUploads([]); setInboxCount(0); return; }
+    let alive = true;
+    Promise.all([
+      supabase.from("profiles").select("id,username,display_name,bio,avatar_url,website").eq("id",currentUserId).maybeSingle(),
+      supabase.from("videos").select("id,caption,video_url,created_at").eq("user_id",currentUserId).neq("status","removed").order("created_at",{ascending:false}).limit(30),
+      supabase.from("conversation_participants").select("conversation_id").eq("user_id",currentUserId)
+    ]).then(([profile,uploads,conversations]) => {
+      if (!alive) return;
+      setMyProfile(profile.data ?? null); setMyUploads(uploads.data ?? []); setInboxCount(conversations.data?.length ?? 0);
+    });
     return () => { alive = false; };
   }, [currentUserId, databaseVideos]);
   const touchStart = useRef<number | null>(null);
