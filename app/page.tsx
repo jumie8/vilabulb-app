@@ -313,7 +313,7 @@ export default function HomePage() {
         <div className="feed-controls"><button onClick={previous} aria-label="Previous video">↑</button><button onClick={next} aria-label="Next video">↓</button></div>
         <aside className="right-rail">
           <div className="rail-card welcome-card"><span className="spark">✦</span><h3>Your world.<br/>Your spotlight.</h3><p>Every creator has a story. This is where yours gets seen.</p><button onClick={() => setUploadOpen(true)}>Start creating <Plus size={15}/></button></div>
-          <div className="rail-card trend-card"><div className="rail-title">Trending tags <span>See all</span></div>{["#NaijaCreators","#DailyLifestyle","#FoodTok","#GetInspired"].map((tag,i)=><div className="trend" key={tag}><span className="trend-number">0{i+1}</span><div><b>{tag}</b><small>{["12.8K","9.4K","7.2K","5.6K"][i]} videos</small></div><span className="trend-arrow">↗</span></div>)}</div>
+          <div className="rail-card trend-card"><div className="rail-title">Trending tags <button type="button" onClick={() => setActiveView("discover")}>See all</button></div>{["#NaijaCreators","#DailyLifestyle","#FoodTok","#GetInspired"].map((tag,i)=><button type="button" className="trend trend-button" key={tag} onClick={() => { setSearchQuery(tag); setFeedMode("for-you"); setActive(0); setActiveView("home"); }}><span className="trend-number">0{i+1}</span><div><b>{tag}</b><small>{["12.8K","9.4K","7.2K","5.6K"][i]} videos</small></div><span className="trend-arrow">↗</span></button>)}</div>
           <div className="rail-quote">“Create what you wish existed.”<span>THE VILABULB SPIRIT</span></div>
         </aside>
       </div></>}
