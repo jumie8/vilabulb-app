@@ -56,3 +56,13 @@
 .live-badge{align-self:flex-start;color:#ff668d;font-weight:800;font-size:11px;letter-spacing:.08em}
 .live-waiting{font-size:12px;color:#a99aff}
 @media(max-width:700px){.live-start-form{align-items:stretch;flex-direction:column}.live-start-form input,.live-start-form .signup-button{width:100%}.mobile-nav{grid-template-columns:repeat(6,minmax(0,1fr))}.mobile-nav button{min-width:0;font-size:8px}}
+
+/* LiveKit broadcast experience */
+.live-room-overlay{position:fixed;inset:0;z-index:1000;background:#090a10;display:flex;flex-direction:column;padding:12px;gap:10px}
+.live-room-header{display:flex;justify-content:space-between;align-items:center;gap:12px;color:#fff;padding:8px 4px}
+.live-room-header>div{display:flex;align-items:center;gap:12px}
+.live-room-header button{border:1px solid #414251;background:#20212b;color:#fff;border-radius:10px;padding:10px 15px;font-weight:700}
+.livekit-stage{flex:1;min-height:0;overflow:hidden;border-radius:16px;background:#101118}
+.livekit-stage .lk-video-conference{height:100%;min-height:0}
+.live-room-message{margin:auto;max-width:480px;padding:24px;color:#fff;text-align:center;background:#1b1c27;border-radius:16px}
+.live-room-error{color:#ff9aab}
