@@ -275,7 +275,7 @@ export default function HomePage() {
             <div className="creator-row"><div className="avatar">{video.user[0].toUpperCase()}</div><strong>@{video.user}</strong><button className={following.includes(video.user) ? "follow following" : "follow"} onClick={toggleFollow}>{following.includes(video.user) ? "Following" : "Follow"}</button></div>
             <p>{video.caption}</p><p className="video-tags">{video.tag} <span>#vilabulb</span></p>
             <div className="sound-line"><Music2 size={15}/><span>{video.sound}</span></div>
-          </div>
+          </div>}
           {visibleVideos.length > 0 && <div className="video-actions">
             <button onClick={toggleLike} className={liked.includes(active) ? "action liked" : "action"}><span><Heart fill={liked.includes(active) ? "currentColor" : "none"}/></span><b>{liked.includes(active) ? "1.3K" : "1.2K"}</b></button>
             <button className="action" onClick={() => setCommentsOpen(true)}><span><MessageSquare/></span><b>{commentItems[safeActive]?.length ?? 0} comments</b></button>
