@@ -43,6 +43,10 @@ export default function HomePage() {
   const [authBusy, setAuthBusy] = useState(false);
   const [otpMode, setOtpMode] = useState(false);
   const [otp, setOtp] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [feedMode, setFeedMode] = useState<"for-you" | "following">("for-you");
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentItems, setCommentItems] = useState<Record<number, string[]>>({});
 
   useEffect(() => {
     if (!supabase) return;
@@ -159,12 +163,18 @@ export default function HomePage() {
     setCurrentUser(null);
   };
   const touchStart = useRef<number | null>(null);
-  const video = videos[active];
-  const toggleLike = () => setLiked(v => v.includes(active) ? v.filter(i => i !== active) : [...v, active]);
-  const toggleSave = () => setSaved(v => v.includes(active) ? v.filter(i => i !== active) : [...v, active]);
+  const visibleVideos = videos.filter(item => {
+    const matchesSearch = `${item.user} ${item.caption} ${item.tag} ${item.sound}`.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFeed = feedMode === "for-you" || following.includes(item.user);
+    return matchesSearch && matchesFeed;
+  });
+  const safeActive = visibleVideos.length ? active % visibleVideos.length : 0;
+  const video = visibleVideos[safeActive];
+  const toggleLike = () => setLiked(v => v.includes(safeActive) ? v.filter(i => i !== safeActive) : [...v, safeActive]);
+  const toggleSave = () => setSaved(v => v.includes(safeActive) ? v.filter(i => i !== safeActive) : [...v, safeActive]);
   const toggleFollow = () => setFollowing(v => v.includes(video.user) ? v.filter(x => x !== video.user) : [...v, video.user]);
-  const next = () => { setActive(v => (v + 1) % videos.length); setVideoError(false); };
-  const previous = () => { setActive(v => (v - 1 + videos.length) % videos.length); setVideoError(false); };
+  const next = () => { if (visibleVideos.length) setActive(v => (v + 1) % visibleVideos.length); setVideoError(false); };
+  const previous = () => { if (visibleVideos.length) setActive(v => (v - 1 + visibleVideos.length) % visibleVideos.length); setVideoError(false); };
   const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => { touchStart.current = e.touches[0].clientY; };
   const onTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
     if (touchStart.current === null) return;
@@ -191,13 +201,13 @@ export default function HomePage() {
     <section className="main-area" id="top">
       <header className="topbar">
         <div className="mobile-brand"><span className="brand-mark">V</span> VILABULB</div>
-        <div className="search-wrap"><Search size={18}/><input aria-label="Search" placeholder="Search videos, creators and sounds"/></div>
+        <div className="search-wrap"><Search size={18}/><input aria-label="Search videos, creators and sounds" placeholder="Search videos, creators and sounds" value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setActive(0); }}/></div>
         <button className="login-button" onClick={() => { setAuthMode("login"); setAuthMessage(""); setAuthOpen(true); }}>{currentUser ? "Account" : "Log in"}</button>{currentUser ? <button className="signup-button" onClick={handleLogout}>Log out</button> : <button className="signup-button" onClick={() => { setAuthMode("signup"); setAuthMessage(""); setAuthOpen(true); }}>Sign up</button>}
       </header>
-      <div className="feed-heading"><div><span className="eyebrow"><Flame size={14}/> YOUR DAILY SPARK</span><h1>For You</h1><p>Fresh videos picked to brighten your scroll.</p></div><div className="feed-tabs"><button className="tab active">For You</button><button className="tab">Following</button></div></div>
+      <div className="feed-heading"><div><span className="eyebrow"><Flame size={14}/> YOUR DAILY SPARK</span><h1>For You</h1><p>Fresh videos picked to brighten your scroll.</p></div><div className="feed-tabs"><button className={feedMode === "for-you" ? "tab active" : "tab"} onClick={() => { setFeedMode("for-you"); setActive(0); }}>For You</button><button className={feedMode === "following" ? "tab active" : "tab"} onClick={() => { setFeedMode("following"); setActive(0); }}>Following</button></div></div>
       <div className="feed-layout" id="feed">
         <div className="video-stage" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-          {!videoError ? <video key={video.url + active} className="video" src={video.url} autoPlay muted={!soundOn} loop playsInline controls={false} preload="auto" onError={() => setVideoError(true)} /> : <div className="video-fallback"><Play size={42}/><strong>Video preview couldn't load</strong><span>Check your connection and try the next clip.</span><button onClick={() => { setVideoError(false); }}>Try again</button></div>}
+          {!video ? <div className="video-fallback"><Search size={38}/><strong>{feedMode === "following" ? "No followed creators yet" : "No matching videos"}</strong><span>{feedMode === "following" ? "Follow creators to build your Following feed." : "Try another search."}</span><button onClick={() => { setSearchQuery(""); setFeedMode("for-you"); }}>Explore videos</button></div> : !videoError ? <video key={video.url + active} className="video" src={video.url} autoPlay muted={!soundOn} loop playsInline controls={false} preload="auto" onError={() => setVideoError(true)} /> : <div className="video-fallback"><Play size={42}/><strong>Video preview couldn't load</strong><span>Check your connection and try the next clip.</span><button onClick={() => { setVideoError(false); }}>Try again</button></div>}
           <div className="video-shade"/>
           <div className="video-top"><span className="quality-pill"><span/> VILA PICKS</span><button className="sound-button" aria-label={soundOn ? "Mute video" : "Turn sound on"} onClick={() => setSoundOn(v => !v)}>{soundOn ? <Volume2 size={18}/> : <VolumeX size={18}/>}</button></div>
           <div className="video-copy">
@@ -207,7 +217,7 @@ export default function HomePage() {
           </div>
           <div className="video-actions">
             <button onClick={toggleLike} className={liked.includes(active) ? "action liked" : "action"}><span><Heart fill={liked.includes(active) ? "currentColor" : "none"}/></span><b>{liked.includes(active) ? "1.3K" : "1.2K"}</b></button>
-            <button className="action" onClick={() => setCommentsOpen(true)}><span><MessageSquare/></span><b>Comment</b></button>
+            <button className="action" onClick={() => setCommentsOpen(true)}><span><MessageSquare/></span><b>{commentItems[safeActive]?.length ?? 0} comments</b></button>
             <button onClick={toggleSave} className={saved.includes(active) ? "action liked" : "action"}><span><Bookmark fill={saved.includes(active) ? "currentColor" : "none"}/></span><b>{saved.includes(active) ? "Saved" : "Save"}</b></button>
             <button className="action" onClick={() => { if (navigator.share) navigator.share({ title: "VILABULB", text: video.caption, url: window.location.href }).catch(() => {}); else navigator.clipboard?.writeText(window.location.href); }}><span><Share2/></span><b>Share</b></button>
           </div>
@@ -223,6 +233,6 @@ export default function HomePage() {
     <nav className="mobile-nav"><a className="active"><Home/><span>Home</span></a><a><Compass/><span>Discover</span></a><button onClick={() => setUploadOpen(true)}><Plus/></button><a><MessageCircle/><span>Inbox</span></a><a><UserRound/><span>Profile</span></a></nav>
     {authOpen && <div className="modal-backdrop" onClick={() => setAuthOpen(false)}><div className="upload-modal" onClick={e => e.stopPropagation()}><button className="close-modal" onClick={() => setAuthOpen(false)}><X/></button><div className="upload-icon"><UserRound/></div><h2>{authMode === "signup" ? "Join VILABULB" : "Welcome back"}</h2><p>{authMode === "signup" ? "Create your creator account." : "Log in to your account."}</p>{otpMode ? <><form onSubmit={handleVerifyOtp} className="auth-form"><input inputMode="numeric" autoComplete="one-time-code" value={otp} onChange={e => setOtp(e.target.value.replace(/\\D/g, "").slice(0, 6))} placeholder="Enter 6-digit email code" minLength={6} maxLength={6} required/><button className="signup-button wide" type="submit" disabled={authBusy || otp.length !== 6}>{authBusy ? "Verifying..." : "Verify code and create account"}</button></form><p className="auth-hint">Check your inbox and spam folder. Keep this screen open while you enter the code.</p></> : <><form onSubmit={handleAuth} className="auth-form">{authMode === "signup" && <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" autoComplete="username" required/>}<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" autoComplete="email" required/><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password (at least 6 characters)" autoComplete={authMode === "signup" ? "new-password" : "current-password"} minLength={6} required/><button className="signup-button wide" type="submit" disabled={authBusy}>{authBusy ? "Please wait..." : authMode === "signup" ? "Create account" : "Log in"}</button></form><div className="auth-divider"><span>or</span></div><button type="button" className="google-signin" onClick={handleGoogleSignIn} disabled={authBusy}><span className="google-g">G</span> Continue with Google</button></>}{authMessage && <p role="status">{authMessage}</p>}<p><button className="text-switch" onClick={() => { setOtpMode(false); setOtp(""); setAuthMode(authMode === "signup" ? "login" : "signup"); setAuthMessage(""); }}>{otpMode ? "Back to sign up" : authMode === "signup" ? "Already have an account? Log in" : "New to VILABULB? Sign up"}</button></p></div></div>}
     {uploadOpen && <div className="modal-backdrop" onClick={() => setUploadOpen(false)}><div className="upload-modal" onClick={e => e.stopPropagation()}><button className="close-modal" onClick={() => setUploadOpen(false)}><X/></button><div className="upload-icon"><Plus/></div><h2>Your next moment starts here</h2><p>Video uploading will be connected when we set up creator accounts and secure video storage.</p><button className="signup-button wide" onClick={() => setUploadOpen(false)}>Got it</button></div></div>}
-    {commentsOpen && <div className="modal-backdrop" onClick={() => setCommentsOpen(false)}><div className="upload-modal" onClick={e => e.stopPropagation()}><button className="close-modal" onClick={() => setCommentsOpen(false)}><X/></button><h2>Comments</h2><p>Comments will be available after member accounts and the database are connected.</p><button className="signup-button wide" onClick={() => setCommentsOpen(false)}>Close</button></div></div>}
+    {commentsOpen && <div className="modal-backdrop" onClick={() => setCommentsOpen(false)}><div className="upload-modal comments-modal" onClick={e => e.stopPropagation()}><button className="close-modal" onClick={() => setCommentsOpen(false)}><X/></button><h2>Comments</h2><div className="comment-list">{(commentItems[safeActive] ?? []).length ? (commentItems[safeActive] ?? []).map((item, i) => <p className="comment-item" key={i}>{item}</p>) : <p>No comments yet. Be the first to comment!</p>}</div><form className="comment-form" onSubmit={e => { e.preventDefault(); const value = commentDraft.trim(); if (!value) return; setCommentItems(old => ({ ...old, [safeActive]: [...(old[safeActive] ?? []), value] })); setCommentDraft(""); }}><input value={commentDraft} onChange={e => setCommentDraft(e.target.value)} placeholder="Add a comment..." maxLength={300}/><button className="signup-button" type="submit" disabled={!commentDraft.trim()}>Post</button></form><p className="auth-hint">Comments currently appear in this browser only. Database syncing is the next step.</p></div></div>}
   </main>;
 }
