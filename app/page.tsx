@@ -54,6 +54,7 @@ export default function HomePage() {
           email: email.trim().toLowerCase(),
           password,
           options: {
+            emailRedirectTo: window.location.origin,
             data: {
               username: cleanUsername || null,
               display_name: username.trim() || email.trim().split("@")[0]
@@ -61,11 +62,16 @@ export default function HomePage() {
           }
         });
         if (error) throw error;
-        // The database creates the profile automatically when auth.users receives
-        // a new account, so this works even when email confirmation is enabled.
+        if (data.user && data.user.identities?.length === 0) {
+          setAuthMode("login");
+          setAuthMessage("An account with this email already exists. If you have not confirmed it yet, check your inbox and spam folder for the VILABULB confirmation email. Then log in.");
+          return;
+        }
+        // Supabase has accepted the signup. With email confirmation enabled,
+        // the user must click the email link before a session can be created.
         setAuthMessage(data.session
-          ? "Your VILABULB account is ready! You can now log in."
-          : "Your account request was received. Check your email for the confirmation link before logging in.");
+          ? "Your VILABULB account is ready! You are signed in."
+          : `Signup accepted for ${email.trim()}. Check your inbox and spam folder for the confirmation link, then return here and log in. Do not submit signup again.`);
         if (data.session) setAuthOpen(false);
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -75,7 +81,7 @@ export default function HomePage() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";
       if (/rate limit|security purposes|after \d+ seconds|email rate/i.test(message)) {
-        setAuthMessage("For account security, Supabase is temporarily limiting signup requests. Please wait for the countdown to finish, then try once. If it keeps happening, wait a little longer before retrying.");
+        setAuthMessage("Supabase recently sent a confirmation email, so another signup email is temporarily blocked. Do not keep pressing Create account. Check your inbox and spam folder for the VILABULB confirmation email, then log in after confirming.");
       } else if (/already registered|already been registered|user already/i.test(message)) {
         setAuthMessage("An account with this email may already exist. Choose Log in instead.");
       } else {
