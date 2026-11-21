@@ -182,6 +182,25 @@ export default function HomePage() {
     return () => { alive = false; };
   }, [currentUserId]);
 
+  useEffect(() => {
+    if (!supabase || !currentUserId) { setFollowing([]); setLiked([]); setSaved([]); return; }
+    let alive = true;
+    const loadMyActivity = async () => {
+      const [{ data: followed }, { data: likes }, { data: saves }] = await Promise.all([
+        supabase.from("follows").select("profiles!follows_following_id_fkey(username,display_name)").eq("follower_id",currentUserId).eq("status","accepted"),
+        supabase.from("video_likes").select("video_id").eq("user_id",currentUserId),
+        supabase.from("video_saves").select("video_id").eq("user_id",currentUserId)
+      ]);
+      if (!alive) return;
+      setFollowing((followed ?? []).map((row:any) => row.profiles?.username || row.profiles?.display_name).filter(Boolean));
+      const likeIds = new Set((likes ?? []).map((row:any) => row.video_id));
+      const saveIds = new Set((saves ?? []).map((row:any) => row.video_id));
+      setLiked(databaseVideos.map((row:any,index:number) => likeIds.has(row.id) ? index : -1).filter((index:number) => index >= 0));
+      setSaved(databaseVideos.map((row:any,index:number) => saveIds.has(row.id) ? index : -1).filter((index:number) => index >= 0));
+    };
+    loadMyActivity();
+    return () => { alive = false; };
+  }, [currentUserId, databaseVideos]);
   const touchStart = useRef<number | null>(null);
   const sourceVideos = databaseVideos.length ? databaseVideos : videos;
   const visibleVideos = sourceVideos.filter(item => {
