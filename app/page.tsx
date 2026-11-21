@@ -5,6 +5,18 @@ import type { FormEvent } from "react";
 import { supabase } from "../lib/supabase";
 import { Home, Compass, Users, Plus, MessageCircle, UserRound, Search, Heart, MessageSquare, Bookmark, Share2, Music2, Volume2, VolumeX, Flame, X, Play } from "lucide-react";
 
+function withAuthTimeout<T>(request: Promise<T>, timeoutMs = 15000): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error("The connection is taking too long. Please check your internet connection and try again. If you already received a confirmation email, do not sign up again—check your inbox and log in."));
+    }, timeoutMs);
+    request.then(
+      (result) => { window.clearTimeout(timer); resolve(result); },
+      (error) => { window.clearTimeout(timer); reject(error); }
+    );
+  });
+}
+
 const sampleVideo = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
 const videos = [
   { user: "amara.creates", caption: "Little moments, big memories ✨ What made you smile today?", sound: "Original sound · Amara", tag: "#goodvibes", url: sampleVideo },
@@ -50,7 +62,7 @@ export default function HomePage() {
     try {
       if (authMode === "signup") {
         const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await withAuthTimeout(supabase.auth.signUp({
           email: email.trim().toLowerCase(),
           password,
           options: {
@@ -60,7 +72,7 @@ export default function HomePage() {
               display_name: username.trim() || email.trim().split("@")[0]
             }
           }
-        });
+        }));
         if (error) throw error;
         if (data.user && data.user.identities?.length === 0) {
           setAuthMode("login");
@@ -74,7 +86,7 @@ export default function HomePage() {
           : `Signup accepted for ${email.trim()}. Check your inbox and spam folder for the confirmation link, then return here and log in. Do not submit signup again.`);
         if (data.session) setAuthOpen(false);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await withAuthTimeout(supabase.auth.signInWithPassword({ email, password }));
         if (error) throw error;
         setAuthOpen(false);
       }
