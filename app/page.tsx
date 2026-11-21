@@ -78,7 +78,7 @@ export default function HomePage() {
           email: email.trim().toLowerCase(),
           password,
           options: {
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: "https://vilabulb.netlify.app",
             data: {
               username: cleanUsername || null,
               display_name: username.trim() || email.trim().split("@")[0]
@@ -154,7 +154,7 @@ export default function HomePage() {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin }
+        options: { redirectTo: "https://vilabulb.netlify.app" }
       });
       if (error) throw error;
     } catch (error) {
