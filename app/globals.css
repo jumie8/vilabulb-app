@@ -10,3 +10,10 @@
 
 /* VILABULB comments and discovery interactions */
 .comments-modal{max-height:min(78vh,680px);display:flex;flex-direction:column}.comment-list{overflow:auto;max-height:42vh;text-align:left;display:grid;gap:8px;margin:12px 0}.comment-item{padding:10px 12px;background:#101117;border:1px solid #30313d;border-radius:10px;color:#f1eff7!important;margin:0!important;overflow-wrap:anywhere}.comment-form{display:flex;gap:8px}.comment-form input{min-width:0;flex:1;height:43px;padding:0 12px;border-radius:9px;border:1px solid #373947;background:#101117;color:#fff;outline:none}.comment-form .signup-button{white-space:nowrap}.comment-form .signup-button:disabled{opacity:.5}.auth-hint{font-size:11px!important;color:#8f91a0!important}
+
+/* Mobile create-video entry point and modal stacking fix */
+.top-create-button{display:flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0;border:0;border-radius:10px;padding:10px 12px;background:linear-gradient(100deg,#ff4c8b,#a66cff);color:#fff;font-size:12px;font-weight:800;white-space:nowrap}
+.upload-backdrop{z-index:1000;pointer-events:auto}
+.upload-backdrop .upload-modal{z-index:1001;max-height:calc(100dvh - 36px);overflow-y:auto;overscroll-behavior:contain}
+.mobile-nav{z-index:10}
+@media(max-width:700px){.top-create-button{padding:9px 10px;font-size:11px}.topbar{gap:6px}.upload-backdrop{padding:12px}.upload-backdrop .upload-modal{padding:28px 22px}}
