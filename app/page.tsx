@@ -276,11 +276,11 @@ export default function HomePage() {
     <aside className="sidebar">
       <a className="brand" href="#top"><span className="brand-mark">V</span><span>VILA<span className="brand-light">BULB</span></span></a>
       <nav className="side-links">
-        <a className="side-link selected" href="#feed"><Home/><span>For You</span></a>
-        <a className="side-link" href="#discover"><Compass/><span>Discover</span></a>
-        <a className="side-link" href="#following"><Users/><span>Following</span></a>
-        <a className="side-link" href="#inbox"><MessageCircle/><span>Inbox</span></a>
-        <a className="side-link" href="#profile"><UserRound/><span>Profile</span></a>
+        <button className={activeView === "home" ? "side-link selected" : "side-link"} onClick={() => setActiveView("home")}><Home/><span>For You</span></button>
+        <button className={activeView === "discover" ? "side-link selected" : "side-link"} onClick={() => setActiveView("discover")}><Compass/><span>Discover</span></button>
+        <button className="side-link" onClick={() => { setActiveView("home"); setFeedMode("following"); setActive(0); }}><Users/><span>Following</span></button>
+        <button className={activeView === "inbox" ? "side-link selected" : "side-link"} onClick={() => setActiveView("inbox")}><MessageCircle/><span>Inbox</span></button>
+        <button className={activeView === "profile" ? "side-link selected" : "side-link"} onClick={() => setActiveView("profile")}><UserRound/><span>Profile</span></button>
       </nav>
       <button className="create-button" onClick={() => setUploadOpen(true)}><Plus size={19}/> Create video</button>
       <div className="sidebar-note"><span className="live-dot"/> Your space to shine.<br/><small>Watch. Create. Connect.</small></div>
