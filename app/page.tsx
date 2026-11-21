@@ -43,6 +43,9 @@ export default function HomePage() {
   const [authBusy, setAuthBusy] = useState(false);
   const [otpMode, setOtpMode] = useState(false);
   const [otp, setOtp] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [databaseVideos, setDatabaseVideos] = useState<any[]>([]);
+  const [feedNotice, setFeedNotice] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [feedMode, setFeedMode] = useState<"for-you" | "following">("for-you");
   const [commentDraft, setCommentDraft] = useState("");
@@ -50,9 +53,9 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.auth.getSession().then(({ data }) => setCurrentUser(data.session?.user.email ?? null));
+    supabase.auth.getSession().then(({ data }) => { setCurrentUser(data.session?.user.email ?? null); setCurrentUserId(data.session?.user.id ?? null); });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setCurrentUser(session?.user.email ?? null);
+      setCurrentUser(session?.user.email ?? null); setCurrentUserId(session?.user.id ?? null);
     });
     return () => listener.subscription.unsubscribe();
   }, []);
@@ -162,17 +165,53 @@ export default function HomePage() {
     await supabase.auth.signOut();
     setCurrentUser(null);
   };
+  useEffect(() => {
+    if (!supabase) return;
+    let alive = true;
+    const loadFeed = async () => {
+      const { data, error } = await supabase.from("videos").select("id,user_id,caption,video_url,created_at,profiles!videos_user_id_fkey(username,display_name)").eq("status","published").eq("visibility","public").order("created_at",{ascending:false}).limit(30);
+      if (!alive) return;
+      if (error) { setFeedNotice("Could not load community videos yet."); return; }
+      const mapped = (data ?? []).map((item: any) => ({ id:item.id, userId:item.user_id, user:item.profiles?.username || item.profiles?.display_name || "creator", caption:item.caption || "", sound:"Original sound", tag:"#vilabulb", url:item.video_url }));
+      setDatabaseVideos(mapped);
+    };
+    loadFeed();
+    return () => { alive = false; };
+  }, [currentUserId]);
+
   const touchStart = useRef<number | null>(null);
-  const visibleVideos = videos.filter(item => {
+  const sourceVideos = databaseVideos.length ? databaseVideos : videos;
+  const visibleVideos = sourceVideos.filter(item => {
     const matchesSearch = `${item.user} ${item.caption} ${item.tag} ${item.sound}`.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFeed = feedMode === "for-you" || following.includes(item.user);
     return matchesSearch && matchesFeed;
   });
   const safeActive = visibleVideos.length ? active % visibleVideos.length : 0;
   const video = visibleVideos[safeActive] ?? videos[0];
-  const toggleLike = () => setLiked(v => v.includes(safeActive) ? v.filter(i => i !== safeActive) : [...v, safeActive]);
-  const toggleSave = () => setSaved(v => v.includes(safeActive) ? v.filter(i => i !== safeActive) : [...v, safeActive]);
-  const toggleFollow = () => setFollowing(v => v.includes(video.user) ? v.filter(x => x !== video.user) : [...v, video.user]);
+  const toggleLike = async () => {
+    if (!currentUserId) { setAuthMode("login"); setAuthMessage("Log in to like videos."); setAuthOpen(true); return; }
+    const target = video as any;
+    if (!target?.id || !supabase) { setLiked(v => v.includes(safeActive) ? v.filter(i => i !== safeActive) : [...v, safeActive]); return; }
+    const { data: existing } = await supabase.from("video_likes").select("video_id").eq("video_id",target.id).eq("user_id",currentUserId).maybeSingle();
+    if (existing) { const { error } = await supabase.from("video_likes").delete().eq("video_id",target.id).eq("user_id",currentUserId); if (!error) setLiked(v => v.filter(i => i !== safeActive)); }
+    else { const { error } = await supabase.from("video_likes").insert({video_id:target.id,user_id:currentUserId}); if (!error) setLiked(v => [...v,safeActive]); }
+  };
+  const toggleSave = async () => {
+    if (!currentUserId) { setAuthMode("login"); setAuthMessage("Log in to save videos."); setAuthOpen(true); return; }
+    const target = video as any;
+    if (!target?.id || !supabase) { setSaved(v => v.includes(safeActive) ? v.filter(i => i !== safeActive) : [...v, safeActive]); return; }
+    const { data: existing } = await supabase.from("video_saves").select("video_id").eq("video_id",target.id).eq("user_id",currentUserId).maybeSingle();
+    if (existing) { const { error } = await supabase.from("video_saves").delete().eq("video_id",target.id).eq("user_id",currentUserId); if (!error) setSaved(v => v.filter(i => i !== safeActive)); }
+    else { const { error } = await supabase.from("video_saves").insert({video_id:target.id,user_id:currentUserId}); if (!error) setSaved(v => [...v,safeActive]); }
+  };
+  const toggleFollow = async () => {
+    if (!currentUserId) { setAuthMode("login"); setAuthMessage("Log in to follow creators."); setAuthOpen(true); return; }
+    const target = video as any;
+    if (!target?.userId || !supabase || target.userId === currentUserId) return;
+    const { data: existing } = await supabase.from("follows").select("follower_id").eq("follower_id",currentUserId).eq("following_id",target.userId).maybeSingle();
+    if (existing) { const { error } = await supabase.from("follows").delete().eq("follower_id",currentUserId).eq("following_id",target.userId); if (!error) setFollowing(v => v.filter(x => x !== video.user)); }
+    else { const { error } = await supabase.from("follows").insert({follower_id:currentUserId,following_id:target.userId,status:"accepted"}); if (!error) setFollowing(v => [...v,video.user]); }
+  };
   const next = () => { if (visibleVideos.length) setActive(v => (v + 1) % visibleVideos.length); setVideoError(false); };
   const previous = () => { if (visibleVideos.length) setActive(v => (v - 1 + visibleVideos.length) % visibleVideos.length); setVideoError(false); };
   const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => { touchStart.current = e.touches[0].clientY; };
@@ -205,7 +244,7 @@ export default function HomePage() {
         <button className="login-button" onClick={() => { setAuthMode("login"); setAuthMessage(""); setAuthOpen(true); }}>{currentUser ? "Account" : "Log in"}</button>{currentUser ? <button className="signup-button" onClick={handleLogout}>Log out</button> : <button className="signup-button" onClick={() => { setAuthMode("signup"); setAuthMessage(""); setAuthOpen(true); }}>Sign up</button>}
       </header>
       <div className="feed-heading"><div><span className="eyebrow"><Flame size={14}/> YOUR DAILY SPARK</span><h1>For You</h1><p>Fresh videos picked to brighten your scroll.</p></div><div className="feed-tabs"><button className={feedMode === "for-you" ? "tab active" : "tab"} onClick={() => { setFeedMode("for-you"); setActive(0); }}>For You</button><button className={feedMode === "following" ? "tab active" : "tab"} onClick={() => { setFeedMode("following"); setActive(0); }}>Following</button></div></div>
-      <div className="feed-layout" id="feed">
+      {feedNotice && <p className="feed-notice" role="status">{feedNotice}</p>}<div className="feed-layout" id="feed">
         <div className="video-stage" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
           {!video ? <div className="video-fallback"><Search size={38}/><strong>{feedMode === "following" ? "No followed creators yet" : "No matching videos"}</strong><span>{feedMode === "following" ? "Follow creators to build your Following feed." : "Try another search."}</span><button onClick={() => { setSearchQuery(""); setFeedMode("for-you"); }}>Explore videos</button></div> : !videoError ? <video key={video.url + active} className="video" src={video.url} autoPlay muted={!soundOn} loop playsInline controls={false} preload="auto" onError={() => setVideoError(true)} /> : <div className="video-fallback"><Play size={42}/><strong>Video preview couldn't load</strong><span>Check your connection and try the next clip.</span><button onClick={() => { setVideoError(false); }}>Try again</button></div>}
           <div className="video-shade"/>
