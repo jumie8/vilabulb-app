@@ -58,7 +58,8 @@ export default function HomePage() {
   const [creatorProfiles, setCreatorProfiles] = useState<any[]>([]);
   const [myProfile, setMyProfile] = useState<any>(null);
   const [myUploads, setMyUploads] = useState<any[]>([]);
-  const [inboxCount, setInboxCount] = useState(0);\n  const [liveSessions, setLiveSessions] = useState<any[]>([]);\n  const [liveTitle, setLiveTitle] = useState("");\n  const [liveBusy, setLiveBusy] = useState(false);
+  const [inboxCount, setInboxCount] = useState(0);
+  const [liveSessions, setLiveSessions] = useState<any[]>([]);\n  const [liveTitle, setLiveTitle] = useState("");\n  const [liveBusy, setLiveBusy] = useState(false);
   const [activeLiveRoom, setActiveLiveRoom] = useState<{roomName:string;isHost:boolean}|null>(null);
 
   useEffect(() => {
