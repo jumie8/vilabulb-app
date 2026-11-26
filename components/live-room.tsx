@@ -14,9 +14,13 @@ export default function LiveRoom({ roomName, isHost, onLeave }: LiveRoomProps) {
   const [credentials, setCredentials] = useState<{ token: string; serverUrl: string } | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
+    setError("");
+    setCredentials(null);
     const connect = async () => {
       try {
         const { data } = await (await import("../lib/supabase")).supabase!.auth.getSession();
@@ -38,7 +42,7 @@ export default function LiveRoom({ roomName, isHost, onLeave }: LiveRoomProps) {
     };
     connect();
     return () => { active = false; };
-  }, [roomName]);
+  }, [roomName, retryCount]);
 
   return (
     <div className="live-room-overlay">
@@ -47,7 +51,7 @@ export default function LiveRoom({ roomName, isHost, onLeave }: LiveRoomProps) {
         <button type="button" onClick={onLeave}>Leave live</button>
       </div>
       {loading && <div className="live-room-message">Connecting to VILABULB LIVE…</div>}
-      {error && <div className="live-room-message live-room-error">{error}</div>}
+      {error && <div className="live-room-message live-room-error">{error}<button type="button" onClick={() => setRetryCount(value => value + 1)}>Reconnect</button></div>}
       {credentials && !error && (
         <LiveKitRoom
           token={credentials.token}
@@ -56,7 +60,7 @@ export default function LiveRoom({ roomName, isHost, onLeave }: LiveRoomProps) {
           video={isHost}
           audio={isHost}
           onError={(err) => setError(err.message || "Live connection failed.")}
-          onDisconnected={onLeave}
+          onDisconnected={() => setError("Your live connection was interrupted. Check your internet connection and tap Reconnect.")}
           data-lk-theme="default"
           className="livekit-stage"
         >
