@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const livekitApiKey = process.env.LIVEKIT_API_KEY;
     const livekitApiSecret = process.env.LIVEKIT_API_SECRET;
     if (!supabaseUrl || !supabaseAnonKey || !livekitUrl || !livekitApiKey || !livekitApiSecret) {
-      return NextResponse.json({ error: "LiveKit is not configured yet. Add the LiveKit environment variables in Netlify." }, { status: 503 });
+      return NextResponse.json({ error: "LiveKit is not configured yet. Add LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET to your Vercel project environment variables." }, { status: 503 });
     }
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -55,9 +55,9 @@ export async function POST(request: NextRequest) {
       canPublishData: true
     });
 
-    const serverUrl = /^wss?:\\/\\//i.test(livekitUrl)
+    const serverUrl = /^wss?:\/\//i.test(livekitUrl)
       ? livekitUrl
-      : `wss://${livekitUrl.replace(/^https?:\\/\\//i, "")}`;
+      : `wss://${livekitUrl.replace(/^https?:\/\//i, "")}`;
     return NextResponse.json({ token: await token.toJwt(), serverUrl, isHost });
   } catch {
     return NextResponse.json({ error: "Could not prepare your live connection. Please try again." }, { status: 500 });
