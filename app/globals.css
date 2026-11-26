@@ -211,3 +211,8 @@
 .profile-photo-button:disabled{opacity:.6;cursor:wait}
 .profile-hero>.profile-photo-button{margin:-2px 0 12px}
 .creator-card>.avatar img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
+
+
+.profile-photo-picker{position:relative;overflow:hidden;cursor:pointer}
+.profile-photo-picker input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:100px}
+.profile-photo-picker:has(input:disabled){opacity:.6;cursor:wait}
