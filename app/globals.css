@@ -198,3 +198,16 @@
 .profile-page .empty-panel{background:#151720;border:1px solid #2d2e39;color:#fff}
 .profile-page .empty-panel span{color:#a6a7b1}
 @media(max-width:700px){.profile-page{margin:0 -12px 24px;border-radius:0;border:0;padding:15px 14px 24px;min-height:calc(100dvh - 145px)}.profile-top-actions{margin-bottom:24px}.profile-avatar-wrap,.profile-avatar-image,.profile-avatar{width:82px;height:82px}.profile-hero h1{font-size:20px}.profile-hero .profile-stats b{font-size:18px}.profile-tabs{margin-left:-14px;margin-right:-14px}.profile-video-grid{gap:5px}.profile-video-tile{border-radius:7px}}
+
+
+/* Profile picture upload controls */
+.edit-avatar-row{display:flex;align-items:center;gap:14px;padding:14px 0 18px;margin:8px 0 14px;border-bottom:1px solid #30313d}
+.edit-avatar-row>img,.edit-avatar-placeholder{width:68px;height:68px;flex:0 0 68px;border-radius:20px;object-fit:cover}
+.edit-avatar-placeholder{display:grid;place-items:center;background:linear-gradient(135deg,#282d42,#15171e);font-size:26px}
+.edit-avatar-row>div:last-child{display:grid;gap:5px}
+.edit-avatar-row strong{font-size:13px;color:#fff}
+.edit-avatar-row small{font-size:11px;color:#aeb0bd}
+.profile-photo-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid #49405d;background:#211d2c;color:#e7dfff;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer}
+.profile-photo-button:disabled{opacity:.6;cursor:wait}
+.profile-hero>.profile-photo-button{margin:-2px 0 12px}
+.creator-card>.avatar img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
