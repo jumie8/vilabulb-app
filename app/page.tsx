@@ -232,8 +232,9 @@ export default function HomePage() {
     Promise.all([
       supabase!.from("profiles").select("id,username,display_name,bio,avatar_url,website,is_verified").eq("id",currentUserId).maybeSingle(),
       supabase!.from("videos").select("id,caption,video_url,created_at").eq("user_id",currentUserId).neq("status","removed").order("created_at",{ascending:false}).limit(30),
-      supabase!.from("conversation_participants").select("conversation_id").eq("user_id",currentUserId)
-    ]).then(([profile,uploads,conversations]) => {
+      supabase!.from("conversation_participants").select("conversation_id").eq("user_id",currentUserId),
+      supabase!.from("user_settings").select("preferences").eq("user_id",currentUserId).maybeSingle()
+    ]).then(([profile,uploads,conversations,settings]) => {
       if (!alive) return;
       setMyProfile(profile.data ?? null); setMyUploads(uploads.data ?? []); setInboxCount(conversations.data?.length ?? 0);
       if (settings.data?.preferences) setUserSettings(prev => ({...prev, ...settings.data.preferences}));
