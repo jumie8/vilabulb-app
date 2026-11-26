@@ -252,7 +252,8 @@ export default function HomePage() {
     ]).then(([profile,uploads,conversations,settings]) => {
       if (!alive) return;
       setMyProfile(profile.data ?? null); setMyUploads(uploads.data ?? []); setInboxCount(conversations.data?.length ?? 0);
-      if (settings.data?.preferences) setUserSettings(prev => ({...prev, ...settings.data.preferences}));
+      const preferences = settings.data?.preferences;
+      if (preferences) setUserSettings(prev => ({...prev, ...preferences}));
     });
     return () => { alive = false; };
   }, [currentUserId, databaseVideos]);
