@@ -66,3 +66,26 @@
 .livekit-stage .lk-video-conference{height:100%;min-height:0}
 .live-room-message{margin:auto;max-width:480px;padding:24px;color:#fff;text-align:center;background:#1b1c27;border-radius:16px}
 .live-room-error{color:#ff9aab}
+
+
+/* VILABULB account settings */
+.settings-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:24px}
+.settings-heading h1{display:flex;align-items:center;gap:10px}
+.settings-heading h1 svg,.settings-section h2 svg{color:#b49aff}
+.settings-edit{border:1px solid #464052;background:#201d2b;color:#fff;border-radius:9px;padding:9px 13px;font-weight:700}
+.settings-section{margin:18px 0 22px;border:1px solid #30313d;border-radius:14px;overflow:hidden;background:#151720}
+.settings-section h2{display:flex;align-items:center;gap:10px;font:700 16px 'Space Grotesk';margin:0;padding:17px 18px;border-bottom:1px solid #30313d}
+.settings-section h2 svg{width:19px;height:19px}
+.settings-row{display:flex;width:100%;min-height:62px;align-items:center;justify-content:space-between;gap:16px;padding:13px 18px;border:0;border-bottom:1px solid #292b36;background:transparent;color:#f7f7fb;text-align:left}
+.settings-row:last-child{border-bottom:0}
+.settings-row>span:first-child{display:grid;gap:4px;min-width:0}
+.settings-row b{font-size:13px}
+.settings-row small{font-size:11px;color:#9699a8;line-height:1.45}
+.settings-row>span:last-child{color:#a99aff;flex-shrink:0}
+.settings-row input[type=checkbox]{width:19px;height:19px;accent-color:#a66cff;flex-shrink:0}
+.settings-row:has(button):hover,.settings-row:hover{background:#ffffff06}
+.settings-disabled{opacity:.62;cursor:not-allowed}
+.settings-disabled>span:last-child{font-size:10px;white-space:nowrap}
+.settings-notice{padding:10px 13px;border-radius:9px;background:#242033;color:#d9caff;font-size:12px}
+.settings-panel .auth-hint{text-align:center;margin-top:18px}
+@media(max-width:700px){.settings-heading{align-items:flex-start}.settings-heading h1{font-size:21px}.settings-edit{font-size:11px;padding:8px 10px}.settings-section h2{padding:15px}.settings-row{padding:12px 14px}}
