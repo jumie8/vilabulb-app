@@ -344,7 +344,6 @@ export default function HomePage() {
       setSettingsNotice(error instanceof Error ? "Profile picture upload failed: " + error.message : "Profile picture upload failed. Please try again.");
     } finally {
       setAvatarBusy(false);
-      if (avatarInputRef.current) avatarInputRef.current.value = "";
     }
   };
   const touchStart = useRef<number | null>(null);
