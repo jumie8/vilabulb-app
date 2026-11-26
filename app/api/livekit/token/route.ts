@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const token = new AccessToken(livekitApiKey, livekitApiSecret, {
       identity,
       name: participantName,
-      ttl: "15m"
+      ttl: "4h"
     });
     token.addGrant({
       roomJoin: true,
@@ -55,7 +55,10 @@ export async function POST(request: NextRequest) {
       canPublishData: true
     });
 
-    return NextResponse.json({ token: await token.toJwt(), serverUrl: livekitUrl, isHost });
+    const serverUrl = /^wss?:\\/\\//i.test(livekitUrl)
+      ? livekitUrl
+      : `wss://${livekitUrl.replace(/^https?:\\/\\//i, "")}`;
+    return NextResponse.json({ token: await token.toJwt(), serverUrl, isHost });
   } catch {
     return NextResponse.json({ error: "Could not prepare your live connection. Please try again." }, { status: 500 });
   }
