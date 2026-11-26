@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { supabase } from "../lib/supabase";
 import LiveRoom from "../components/live-room";
-import { Home, Compass, Users, Plus, MessageCircle, UserRound, Search, Heart, MessageSquare, Bookmark, Share2, Music2, Volume2, VolumeX, Flame, X, Play, Radio } from "lucide-react";
+import { Home, Compass, Users, Plus, MessageCircle, UserRound, Search, Heart, MessageSquare, Bookmark, Share2, Music2, Volume2, VolumeX, Flame, X, Play, Radio, Settings, Bell, Shield, Wallet, Activity, Download, QrCode, HelpCircle, LogOut, Lock, Eye, UserCog } from "lucide-react";
 
 function withAuthTimeout<T>(request: Promise<T>, timeoutMs = 15000): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -54,7 +54,7 @@ export default function HomePage() {
   const [feedMode, setFeedMode] = useState<"for-you" | "following">("for-you");
   const [commentDraft, setCommentDraft] = useState("");
   const [commentItems, setCommentItems] = useState<Record<number, string[]>>({});
-  const [activeView, setActiveView] = useState<"home"|"discover"|"inbox"|"profile"|"live">("home");
+  const [activeView, setActiveView] = useState<"home"|"discover"|"inbox"|"profile"|"live"|"settings">("home");
   const [creatorProfiles, setCreatorProfiles] = useState<any[]>([]);
   const [myProfile, setMyProfile] = useState<any>(null);
   const [myUploads, setMyUploads] = useState<any[]>([]);
@@ -63,6 +63,13 @@ export default function HomePage() {
   const [liveTitle, setLiveTitle] = useState("");
   const [liveBusy, setLiveBusy] = useState(false);
   const [activeLiveRoom, setActiveLiveRoom] = useState<{roomName:string;isHost:boolean}|null>(null);
+  const [userSettings, setUserSettings] = useState<Record<string, any>>({ notifications:true, likes:true, comments:true, follows:true, mentions:true, directMessages:true, privateAccount:false, allowComments:true, allowMentions:true, allowMessages:true, allowDownloads:false, hideLikedVideos:true, hideFollowingList:true, dataSaver:false, autoplay:true });
+  const [settingsBusy, setSettingsBusy] = useState(false);
+  const [settingsNotice, setSettingsNotice] = useState("");
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [editWebsite, setEditWebsite] = useState("");
 
   useEffect(() => {
     if (!supabase) return;
@@ -229,6 +236,7 @@ export default function HomePage() {
     ]).then(([profile,uploads,conversations]) => {
       if (!alive) return;
       setMyProfile(profile.data ?? null); setMyUploads(uploads.data ?? []); setInboxCount(conversations.data?.length ?? 0);
+      if (settings.data?.preferences) setUserSettings(prev => ({...prev, ...settings.data.preferences}));
     });
     return () => { alive = false; };
   }, [currentUserId, databaseVideos]);
@@ -261,6 +269,24 @@ export default function HomePage() {
     const {error}=await supabase!.from("live_sessions").update({status:"ended",ended_at:new Date().toISOString()}).eq("id",sessionId).eq("host_id",currentUserId);
     if (error) setFeedNotice(error.message);
     else { setLiveSessions(rows=>rows.filter(row=>row.id!==sessionId)); setActiveLiveRoom(null); }
+  };
+  const saveUserSettings = async (next: Record<string, any>) => {
+    if (!currentUserId || !supabase) { setAuthMode("login"); setAuthMessage("Log in to manage your settings."); setAuthOpen(true); return; }
+    setSettingsBusy(true); setSettingsNotice("");
+    const { error } = await supabase.from("user_settings").upsert({user_id:currentUserId, preferences:next, updated_at:new Date().toISOString()},{onConflict:"user_id"});
+    if (error) setSettingsNotice("Could not save this setting: " + error.message);
+    else { setUserSettings(next); setSettingsNotice("Settings saved."); }
+    setSettingsBusy(false);
+  };
+  const changeSetting = (key:string, value:boolean) => saveUserSettings({...userSettings,[key]:value});
+  const saveProfileChanges = async (event:FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!supabase || !currentUserId) return;
+    setSettingsBusy(true); setSettingsNotice("");
+    const {error} = await supabase.from("profiles").update({display_name:editDisplayName.trim(),bio:editBio.trim(),website:editWebsite.trim() || null,updated_at:new Date().toISOString()}).eq("id",currentUserId);
+    if (error) setSettingsNotice("Profile update failed: " + error.message);
+    else { setMyProfile((p:any)=>({...p,display_name:editDisplayName.trim(),bio:editBio.trim(),website:editWebsite.trim() || null})); setEditProfileOpen(false); setSettingsNotice("Profile updated."); }
+    setSettingsBusy(false);
   };
   const touchStart = useRef<number | null>(null);
   // Show only real community uploads. Demo clips have no database IDs, so likes/follows/comments cannot sync for them.
@@ -325,7 +351,7 @@ export default function HomePage() {
       <header className="topbar">
         <div className="mobile-brand"><span className="brand-mark">V</span> VILABULB</div>
         <div className="search-wrap"><Search size={18}/><input aria-label="Search videos, creators and sounds" placeholder="Search videos, creators and sounds" value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setActive(0); }}/></div><button type="button" className="top-create-button" onClick={() => setUploadOpen(true)}><Plus size={16}/> Create</button>
-        <button className="login-button" onClick={() => { setAuthMode("login"); setAuthMessage(""); setAuthOpen(true); }}>{currentUser ? "Account" : "Log in"}</button>{currentUser ? <button className="signup-button" onClick={handleLogout}>Log out</button> : <button className="signup-button" onClick={() => { setAuthMode("signup"); setAuthMessage(""); setAuthOpen(true); }}>Sign up</button>}
+        <button className="login-button" onClick={() => currentUser ? setActiveView("settings") : (setAuthMode("login"),setAuthMessage(""),setAuthOpen(true))}>{currentUser ? "Settings" : "Log in"}</button>{currentUser ? <button className="signup-button" onClick={handleLogout}>Log out</button> : <button className="signup-button" onClick={() => { setAuthMode("signup"); setAuthMessage(""); setAuthOpen(true); }}>Sign up</button>}
       </header>
       {activeView === "home" && <><div className="feed-heading"><div><span className="eyebrow"><Flame size={14}/> YOUR DAILY SPARK</span><h1>{feedMode === "following" ? "Following" : "For You"}</h1><p>Fresh videos picked to brighten your scroll.</p></div><div className="feed-tabs"><button className={feedMode === "for-you" ? "tab active" : "tab"} onClick={() => { setFeedMode("for-you"); setActive(0); }}>For You</button><button className={feedMode === "following" ? "tab active" : "tab"} onClick={() => { setFeedMode("following"); setActive(0); }}>Following</button></div></div>
       {feedNotice && <p className="feed-notice" role="status">{feedNotice}</p>}<div className="feed-layout" id="feed">
@@ -355,6 +381,37 @@ export default function HomePage() {
       {activeView === "discover" && <section className="app-panel"><h1>Discover creators</h1><p>Find people in the VILABULB community.</p><div className="creator-grid">{creatorProfiles.filter(p => p.id !== currentUserId).map(p => <article className="creator-card" key={p.id}><div className="avatar">{(p.username || p.display_name || "C")[0].toUpperCase()}</div><strong>@{p.username || p.display_name || "creator"}</strong><p>{p.bio || "VILABULB creator"}</p><button className="follow" onClick={async () => { if (!currentUserId) { setAuthMode("login"); setAuthOpen(true); setAuthMessage("Log in to follow creators."); return; } const { data: existing } = await supabase!.from("follows").select("follower_id").eq("follower_id",currentUserId).eq("following_id",p.id).maybeSingle(); if (existing) { await supabase!.from("follows").delete().eq("follower_id",currentUserId).eq("following_id",p.id); setFollowing(v => v.filter(x => x !== (p.username || p.display_name))); } else { const { error } = await supabase!.from("follows").insert({follower_id:currentUserId,following_id:p.id,status:"accepted"}); if (!error) setFollowing(v => [...v,p.username || p.display_name]); else setFeedNotice(error.message); } }}>{following.includes(p.username || p.display_name) ? "Following" : "Follow"}</button></article>)}</div>{creatorProfiles.filter(p => p.id !== currentUserId).length === 0 && <p className="empty-panel">No other creators have joined yet. Invite friends to VILABULB.</p>}</section>}
       {activeView === "live" && <section className="app-panel"><h1><Radio size={25}/> VILABULB LIVE</h1><p>See creators who are live and open a live room.</p>{feedNotice && <p className="feed-notice" role="status">{feedNotice}</p>}<form className="live-start-form" onSubmit={startLiveSession}><input value={liveTitle} onChange={e=>setLiveTitle(e.target.value)} placeholder="What is your live about?" maxLength={120} required/><button className="signup-button" type="submit" disabled={liveBusy}>{liveBusy ? "Starting..." : "＋ Start a live room"}</button></form><div className="live-list">{liveSessions.map(session=><article className="live-card" key={session.id}><span className="live-badge">● LIVE</span><strong>{session.title}</strong><p>@{session.profiles?.username || session.profiles?.display_name || "creator"}</p><small>Started {new Date(session.started_at).toLocaleString()}</small>{session.host_id===currentUserId ? <><button className="follow" onClick={()=>setActiveLiveRoom({roomName:session.room_name,isHost:true})}>Rejoin live</button><button className="follow" onClick={()=>endLiveSession(session.id)}>End live</button></> : <button className="follow" onClick={()=>{ if (!currentUserId) { setAuthMode("login"); setAuthMessage("Log in to watch live."); setAuthOpen(true); } else setActiveLiveRoom({roomName:session.room_name,isHost:false}); }}>Watch live</button>}</article>)}</div>{liveSessions.length===0 && <div className="empty-panel"><Radio size={34}/><strong>No creators are live right now</strong><span>Start a live room to let your followers know you're live.</span></div>}<p className="auth-hint">Live room listings and updates are connected. Real-time camera and microphone streaming requires a streaming provider connection.</p></section>}
       {activeView === "inbox" && <section className="app-panel"><h1>Inbox</h1><p>Your private conversations appear here.</p>{!currentUserId ? <button className="signup-button" onClick={() => { setAuthMode("login"); setAuthOpen(true); }}>Log in to view messages</button> : <div className="empty-panel"><MessageCircle size={32}/><strong>{inboxCount ? "You have conversations" : "No messages yet"}</strong><span>{inboxCount ? "Conversation records found. Messaging threads are not yet available in this screen." : "When conversations are started, they will appear here."}</span></div>}</section>}
+      {activeView === "settings" && <section className="app-panel settings-panel">
+        <div className="settings-heading"><div><h1><Settings size={25}/> Settings and privacy</h1><p>Manage your VILABULB account and preferences.</p></div><button className="settings-edit" onClick={()=>setActiveView("profile")}>View profile</button></div>
+        {!currentUserId ? <div className="empty-panel"><strong>Log in to manage your settings</strong><button className="signup-button" onClick={()=>{setAuthMode("login");setAuthOpen(true);}}>Log in</button></div> : <>
+        {settingsNotice && <p className="settings-notice" role="status">{settingsNotice}</p>}
+        <div className="settings-section"><h2><UserCog/> Account</h2><button className="settings-row" onClick={()=>{setEditDisplayName(myProfile?.display_name || "");setEditBio(myProfile?.bio || "");setEditWebsite(myProfile?.website || "");setEditProfileOpen(true);}}><span><b>Edit profile</b><small>Change your display name, bio and website</small></span><span>›</span></button><button className="settings-row" onClick={()=>setAuthMessage("Password changes are managed through the secure password reset email flow. Use Forgot Password on the login screen.")}><span><b>Security and password</b><small>Manage sign-in and account security</small></span><span>›</span></button></div>
+        <div className="settings-section"><h2><Shield/> Privacy and visibility</h2>
+          {[
+            ["privateAccount","Private account","Only approve people you want to follow you"],
+            ["allowComments","Allow comments","Let people comment on your videos"],
+            ["allowMentions","Allow mentions","Let people mention your account"],
+            ["allowMessages","Allow direct messages","Allow other members to message you"],
+            ["allowDownloads","Allow video downloads","Let viewers download your public videos"],
+            ["hideFollowingList","Hide following list","Keep the accounts you follow private"],
+            ["hideLikedVideos","Hide liked videos","Keep your liked videos private"]
+          ].map(([key,label,desc])=><label className="settings-row" key={key}><span><b>{label}</b><small>{desc}</small></span><input type="checkbox" checked={!!userSettings[key]} disabled={settingsBusy} onChange={e=>changeSetting(key,e.target.checked)}/></label>)}
+        </div>
+        <div className="settings-section"><h2><Bell/> Notifications</h2>
+          {[["notifications","Push and in-app notifications"],["likes","Likes"],["comments","Comments and replies"],["follows","New followers"],["mentions","Mentions"],["directMessages","Direct messages"]].map(([key,label])=><label className="settings-row" key={key}><span><b>{label}</b></span><input type="checkbox" checked={!!userSettings[key]} disabled={settingsBusy || (key!=="notifications" && !userSettings.notifications)} onChange={e=>changeSetting(key,e.target.checked)}/></label>)}
+        </div>
+        <div className="settings-section"><h2><Activity/> Content and display</h2>
+          <label className="settings-row"><span><b>Data saver</b><small>Reduce mobile data use while browsing</small></span><input type="checkbox" checked={!!userSettings.dataSaver} disabled={settingsBusy} onChange={e=>changeSetting("dataSaver",e.target.checked)}/></label>
+          <label className="settings-row"><span><b>Autoplay videos</b><small>Play feed videos automatically</small></span><input type="checkbox" checked={!!userSettings.autoplay} disabled={settingsBusy} onChange={e=>changeSetting("autoplay",e.target.checked)}/></label>
+          <button className="settings-row" onClick={()=>setActiveView("profile")}><span><b>Your videos</b><small>Manage videos you've uploaded</small></span><span>›</span></button>
+          <button className="settings-row" onClick={()=>setActiveView("inbox")}><span><b>Inbox and messaging</b><small>Open your conversations</small></span><span>›</span></button>
+        </div>
+        <div className="settings-section"><h2><Wallet/> Wallet and creator tools</h2><div className="settings-row settings-disabled"><span><b>Wallet</b><small>Secure payments and withdrawals will be enabled after payment-provider setup.</small></span><span>Coming soon</span></div><div className="settings-row settings-disabled"><span><b>Creator analytics</b><small>Video reach and earnings dashboard is being prepared.</small></span><span>Coming soon</span></div><div className="settings-row settings-disabled"><span><b>QR code</b><small>Profile QR sharing</small></span><span>Coming soon</span></div></div>
+        <div className="settings-section"><h2><HelpCircle/> Support</h2><button className="settings-row" onClick={()=>setSettingsNotice("For support, email support@vilabulb.net once your support mailbox is configured.")}><span><b>Help centre</b><small>Get help with VILABULB</small></span><span>›</span></button><button className="settings-row" onClick={handleLogout}><span><b>Log out</b><small>Sign out of this account on this device</small></span><LogOut size={18}/></button></div>
+        <p className="auth-hint">{settingsBusy ? "Saving your settings…" : "Your preferences are saved to your VILABULB account."}</p>
+        </>}
+      </section>}
+      {editProfileOpen && <div className="modal-backdrop" onClick={()=>setEditProfileOpen(false)}><div className="upload-modal" onClick={e=>e.stopPropagation()}><button className="close-modal" onClick={()=>setEditProfileOpen(false)}><X/></button><h2>Edit profile</h2><form className="auth-form" onSubmit={saveProfileChanges}><input value={editDisplayName} onChange={e=>setEditDisplayName(e.target.value)} placeholder="Display name" maxLength={60}/><textarea value={editBio} onChange={e=>setEditBio(e.target.value)} placeholder="Bio" maxLength={160}/><input value={editWebsite} onChange={e=>setEditWebsite(e.target.value)} placeholder="Website URL"/><button className="signup-button wide" type="submit" disabled={settingsBusy}>{settingsBusy ? "Saving…" : "Save profile"}</button></form></div></div>}
       {activeView === "profile" && <section className="app-panel"><h1>Your profile</h1>{!currentUserId ? <button className="signup-button" onClick={() => { setAuthMode("login"); setAuthOpen(true); }}>Log in to view profile</button> : <><div className="profile-summary"><div className="avatar profile-avatar">{(myProfile?.username || currentUser?.split("@")[0] || "V")[0].toUpperCase()}</div><div><strong>@{myProfile?.username || currentUser?.split("@")[0]} {myProfile?.is_verified && <span title="Verified VILABULB account" aria-label="Verified account" style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:17,height:17,marginLeft:6,borderRadius:"50%",background:"#1d9bf0",color:"#fff",fontSize:12,fontWeight:800,verticalAlign:"middle"}}>✓</span>}</strong><p>{myProfile?.bio || "Welcome to your VILABULB creator profile."}</p><small>{currentUser}</small></div></div><h2>Your videos ({myUploads.length})</h2><div className="creator-grid">{myUploads.map(item => <article className="creator-card" key={item.id}><video src={item.video_url} controls playsInline className="profile-video"/><p>{item.caption || "Untitled video"}</p></article>)}</div>{!myUploads.length && <p className="empty-panel">You haven't uploaded any videos yet. Tap Create to share your first video.</p>}</>}</section>}
     </section>
     <nav className="mobile-nav"><button className={activeView === "home" ? "active" : ""} onClick={() => setActiveView("home")}><Home/><span>Home</span></button><button className={activeView === "discover" ? "active" : ""} onClick={() => setActiveView("discover")}><Compass/><span>Discover</span></button><button className={activeView === "live" ? "active" : ""} onClick={() => setActiveView("live")}><Radio/><span>LIVE</span></button><button type="button" aria-label="Create video" onClick={() => setUploadOpen(true)}><Plus/></button><button className={activeView === "inbox" ? "active" : ""} onClick={() => setActiveView("inbox")}><MessageCircle/><span>Inbox</span></button><button className={activeView === "profile" ? "active" : ""} onClick={() => setActiveView("profile")}><UserRound/><span>Profile</span></button></nav>
