@@ -70,6 +70,8 @@ export default function HomePage() {
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editBio, setEditBio] = useState("");
   const [editWebsite, setEditWebsite] = useState("");
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement|null>(null);
   const [profileStats, setProfileStats] = useState({following:0,followers:0,likes:0});
   const [profileTab, setProfileTab] = useState<"videos"|"saved">("videos");
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -321,6 +323,31 @@ export default function HomePage() {
     else { setMyProfile((p:any)=>({...p,display_name:editDisplayName.trim(),bio:editBio.trim(),website:editWebsite.trim() || null})); setEditProfileOpen(false); setSettingsNotice("Profile updated."); }
     setSettingsBusy(false);
   };
+  const uploadProfilePicture = async (file: File) => {
+    if (!supabase || !currentUserId) return;
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) { setSettingsNotice("Choose a JPG, PNG or WebP image."); return; }
+    if (file.size > 5 * 1024 * 1024) { setSettingsNotice("Your profile picture must be 5 MB or smaller."); return; }
+    setAvatarBusy(true); setSettingsNotice("");
+    try {
+      const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+      const objectPath = currentUserId + "/avatar-" + crypto.randomUUID() + "." + extension;
+      const { error: uploadError } = await supabase.storage.from("vilabulb-media").upload(objectPath, file, { contentType: file.type, upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: publicUrl } = supabase.storage.from("vilabulb-media").getPublicUrl(objectPath);
+      const avatarUrl = publicUrl.publicUrl;
+      const { error: profileError } = await supabase.from("profiles").update({ avatar_url: avatarUrl, updated_at: new Date().toISOString() }).eq("id", currentUserId);
+      if (profileError) throw profileError;
+      setMyProfile((profile:any) => ({ ...profile, avatar_url: avatarUrl }));
+      setCreatorProfiles((profiles:any[]) => profiles.map(profile => profile.id === currentUserId ? { ...profile, avatar_url: avatarUrl } : profile));
+      setSettingsNotice("Profile picture updated successfully.");
+    } catch (error) {
+      setSettingsNotice(error instanceof Error ? "Profile picture upload failed: " + error.message : "Profile picture upload failed. Please try again.");
+    } finally {
+      setAvatarBusy(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
   const touchStart = useRef<number | null>(null);
   // Show only real community uploads. Demo clips have no database IDs, so likes/follows/comments cannot sync for them.
   const sourceVideos = databaseVideos;
@@ -451,12 +478,12 @@ export default function HomePage() {
         <p className="auth-hint">{settingsBusy ? "Saving your settings…" : "Your preferences are saved to your VILABULB account."}</p>
         </>}
       </section>}
-      {editProfileOpen && <div className="modal-backdrop" onClick={()=>setEditProfileOpen(false)}><div className="upload-modal" onClick={e=>e.stopPropagation()}><button className="close-modal" onClick={()=>setEditProfileOpen(false)}><X/></button><h2>Edit profile</h2><form className="auth-form" onSubmit={saveProfileChanges}><input value={editDisplayName} onChange={e=>setEditDisplayName(e.target.value)} placeholder="Display name" maxLength={60}/><textarea value={editBio} onChange={e=>setEditBio(e.target.value)} placeholder="Bio" maxLength={160}/><input value={editWebsite} onChange={e=>setEditWebsite(e.target.value)} placeholder="Website URL"/><button className="signup-button wide" type="submit" disabled={settingsBusy}>{settingsBusy ? "Saving…" : "Save profile"}</button></form></div></div>}
+      {editProfileOpen && <div className="modal-backdrop" onClick={()=>setEditProfileOpen(false)}><div className="upload-modal" onClick={e=>e.stopPropagation()}><button className="close-modal" onClick={()=>setEditProfileOpen(false)}><X/></button><h2>Edit profile</h2><div className="edit-avatar-row">{myProfile?.avatar_url ? <img src={myProfile.avatar_url} alt="Current profile picture"/> : <div className="avatar edit-avatar-placeholder">{(myProfile?.username || "V")[0].toUpperCase()}</div>}<div><strong>Profile picture</strong><small>JPG, PNG or WebP · Up to 5 MB</small><button type="button" className="profile-photo-button" onClick={()=>avatarInputRef.current?.click()} disabled={avatarBusy}>{avatarBusy ? "Uploading…" : "Choose photo"}</button><input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e=>{const file=e.target.files?.[0];if(file) void uploadProfilePicture(file);}}/></div></div>{settingsNotice && <p className="settings-notice" role="status">{settingsNotice}</p>}<form className="auth-form" onSubmit={saveProfileChanges}><input value={editDisplayName} onChange={e=>setEditDisplayName(e.target.value)} placeholder="Display name" maxLength={60}/><textarea value={editBio} onChange={e=>setEditBio(e.target.value)} placeholder="Bio" maxLength={160}/><input value={editWebsite} onChange={e=>setEditWebsite(e.target.value)} placeholder="Website URL"/><button className="signup-button wide" type="submit" disabled={settingsBusy}>{settingsBusy ? "Saving…" : "Save profile"}</button></form></div></div>}
       {activeView === "profile" && <section className="app-panel profile-page">
         {!currentUserId ? <div className="empty-panel"><strong>Log in to view your profile</strong><button className="signup-button" onClick={()=>{setAuthMode("login");setAuthOpen(true);}}>Log in</button></div> : <>
           <div className="profile-top-actions"><button aria-label="Back" onClick={()=>setActiveView("home")}>←</button><span>Profile</span><button aria-label="Notifications" onClick={()=>setActiveView("inbox")}><Bell/></button><button aria-label="Settings" onClick={()=>setActiveView("settings")}>•••</button></div>
           <div className="profile-hero">
-            <div className="profile-avatar-wrap">{myProfile?.avatar_url?<img className="profile-avatar-image" src={myProfile.avatar_url} alt="Profile"/>:<div className="avatar profile-avatar">{(myProfile?.username || currentUser?.split("@")[0] || "V")[0].toUpperCase()}</div>}</div>
+            <div className="profile-avatar-wrap">{myProfile?.avatar_url?<img className="profile-avatar-image" src={myProfile.avatar_url} alt="Profile"/>:<div className="avatar profile-avatar">{(myProfile?.username || currentUser?.split("@")[0] || "V")[0].toUpperCase()}</div>}</div><button className="profile-photo-button" type="button" onClick={()=>{setEditDisplayName(myProfile?.display_name||"");setEditBio(myProfile?.bio||"");setEditWebsite(myProfile?.website||"");setEditProfileOpen(true);}}><Camera size={14}/> Change profile picture</button>
             <h1>@{myProfile?.username || currentUser?.split("@")[0] || "vilabulb"} {myProfile?.is_verified && <span className="profile-verified" title="Verified VILABULB account">✓</span>}</h1>
             {myProfile?.display_name && <p className="profile-display-name">{myProfile.display_name}</p>}
             <p className="profile-bio">{myProfile?.bio || "Hello! Welcome to my VILABULB profile."}</p>
