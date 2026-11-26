@@ -91,3 +91,44 @@
 @media(max-width:700px){.settings-heading{align-items:flex-start}.settings-heading h1{font-size:21px}.settings-edit{font-size:11px;padding:8px 10px}.settings-section h2{padding:15px}.settings-row{padding:12px 14px}}
 
 @media(max-width:700px){.login-button{display:block;padding:8px 6px;font-size:10px;white-space:nowrap}}
+
+
+/* Inbox inspired by familiar mobile social messaging layouts */
+.inbox-screen{max-width:720px;margin:0 auto;background:#fff;color:#111;min-height:calc(100dvh - 90px);padding:18px 0 90px}
+.inbox-header{height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 18px}
+.inbox-header h1{font:700 26px 'DM Sans';margin:0;color:#111}
+.inbox-header>button{border:0;background:transparent;color:#111}
+.story-strip{display:flex;gap:16px;overflow-x:auto;padding:22px 16px 24px;scrollbar-width:none}
+.story-strip::-webkit-scrollbar{display:none}
+.story-item{display:grid;justify-items:center;gap:8px;flex:0 0 78px;border:0;background:none;color:#111;min-width:0}
+.story-item b{font-size:11px;max-width:78px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.story-avatar{width:72px;height:72px;border-radius:50%;padding:4px;border:3px solid #17cdb9;background:#f0f0f0;display:grid;place-items:center;font-size:23px;font-weight:800;overflow:hidden}
+.story-avatar img,.conversation-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.story-add{border:2px solid #ddd;color:#fff;background:#18bde1}
+.activity-card{width:100%;display:flex;align-items:center;gap:13px;padding:17px 18px;border:0;background:#f1f1f1;color:#111;text-align:left}
+.activity-icon{width:58px;height:58px;display:grid;place-items:center;border-radius:50%;background:#f02c73;color:white;flex-shrink:0}
+.activity-card>span:nth-child(2){display:grid;gap:5px;min-width:0}
+.activity-card b{font-size:15px}
+.activity-card small{font-size:12px;color:#555}
+.activity-card strong{margin-left:auto;color:#fff;background:#f02c73;border-radius:22px;padding:5px 10px}
+.inbox-section-title{display:flex;justify-content:space-between;align-items:center;padding:20px 18px 10px;font-weight:800}
+.inbox-section-title button{border:0;background:none;color:#777;font-size:12px}
+.conversation-row{width:100%;display:flex;align-items:center;gap:13px;padding:13px 18px;border:0;background:#fff;color:#111;text-align:left}
+.conversation-row:hover{background:#f8f8f8}
+.conversation-avatar{width:58px;height:58px;border-radius:50%;background:#d8d8e4;display:grid;place-items:center;flex-shrink:0;font-weight:800;font-size:20px;overflow:hidden}
+.conversation-copy{display:grid;gap:5px;min-width:0}
+.conversation-copy b{font-size:15px}
+.conversation-copy small{font-size:12px;color:#777;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.camera-screen{position:fixed;inset:0;z-index:1200;background:#000;color:#fff;display:flex;flex-direction:column;padding:18px 18px calc(20px + env(safe-area-inset-bottom));overflow:hidden}
+.camera-top{height:60px;display:flex;align-items:center;justify-content:space-between;position:relative;z-index:2}
+.camera-top button{border:0;background:transparent;color:white;padding:10px}
+.camera-top span{background:#222;border-radius:30px;padding:12px 22px;font-weight:800}
+.camera-preview{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.camera-tools{position:relative;z-index:2;margin-top:auto;display:flex;justify-content:center;gap:18px;align-items:center;padding:18px 0}
+.camera-tools button{border:0;background:none;color:#ddd;font-weight:700;padding:9px 12px}
+.camera-tools button.selected{background:#fff;color:#111;border-radius:24px}
+.camera-bottom{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-around;padding:14px 0 10px}
+.camera-bottom button{border:0;background:transparent;color:#fff;font-weight:700}
+.camera-bottom .capture-button{width:76px;height:76px;border:5px solid #fff;border-radius:50%;background:#fff;color:#111;font-size:35px}
+.camera-error{position:relative;z-index:2;margin:auto;max-width:320px;text-align:center;line-height:1.6;color:#eee}
+@media(max-width:700px){.inbox-screen{margin:0 -13px;min-height:calc(100dvh - 145px);padding-top:12px}.inbox-header h1{font-size:23px}.story-avatar{width:76px;height:76px}.activity-card b{font-size:14px}.conversation-row{padding:12px 17px}}
