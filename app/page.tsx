@@ -59,6 +59,8 @@ export default function HomePage() {
   const [myProfile, setMyProfile] = useState<any>(null);
   const [myUploads, setMyUploads] = useState<any[]>([]);
   const [inboxCount, setInboxCount] = useState(0);
+  const [activityItems, setActivityItems] = useState<any[]>([]);
+  const [activityBusy, setActivityBusy] = useState(false);
   const [liveSessions, setLiveSessions] = useState<any[]>([]);
   const [liveTitle, setLiveTitle] = useState("");
   const [liveBusy, setLiveBusy] = useState(false);
@@ -111,6 +113,45 @@ export default function HomePage() {
     return () => { cancelled = true; livePreviewStream.current?.getTracks().forEach(track => track.stop()); livePreviewStream.current = null; };
   }, [activeView, activeLiveRoom, liveFacing]);
 
+  useEffect(() => {
+    if (!supabase || !currentUserId) { setActivityItems([]); return; }
+    let alive = true;
+    setActivityBusy(true);
+    supabase.from("notifications").select("id,type,message,is_read,created_at,actor:profiles!notifications_actor_id_fkey(username,display_name,avatar_url)").eq("user_id",currentUserId).order("created_at",{ascending:false}).limit(40)
+      .then(({data}) => { if (alive) setActivityItems(data ?? []); })
+      .finally(() => { if (alive) setActivityBusy(false); });
+    const channel = supabase.channel("vilabulb-notifications-"+currentUserId)
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications",filter:"user_id=eq."+currentUserId},payload=>setActivityItems(rows=>[payload.new as any,...rows].slice(0,40)))
+      .subscribe();
+    return () => { alive=false; supabase.removeChannel(channel); };
+  }, [currentUserId]);
+
+  const markNotificationsRead = async () => {
+    if (!supabase || !currentUserId) return;
+    const {error}=await supabase.from("notifications").update({is_read:true}).eq("user_id",currentUserId).eq("is_read",false);
+    if (!error) setActivityItems(rows=>rows.map(row=>({...row,is_read:true})));
+  };
+  const reportCurrentVideo = async () => {
+    const target = video as any;
+    if (!currentUserId || !supabase) { setAuthMode("login"); setAuthMessage("Log in to report content."); setAuthOpen(true); return; }
+    if (!target?.id) { setFeedNotice("Only uploaded community videos can be reported."); return; }
+    const reason = window.prompt("Why are you reporting this video? Type: spam, harassment, hate, nudity, violence, misinformation, copyright or other");
+    if (!reason) return;
+    const normalized = reason.trim().toLowerCase();
+    const allowed = ["spam","harassment","hate","nudity","violence","misinformation","copyright","other"];
+    if (!allowed.includes(normalized)) { setFeedNotice("Please enter one of the listed report reasons."); return; }
+    const {error}=await supabase.from("content_reports").insert({reporter_id:currentUserId,reported_user_id:target.userId,video_id:target.id,reason:normalized});
+    setFeedNotice(error ? "Could not submit report: "+error.message : "Thank you. Your report has been sent for review.");
+  };
+  const blockCurrentCreator = async () => {
+    const target = video as any;
+    if (!currentUserId || !supabase) { setAuthMode("login"); setAuthMessage("Log in to block creators."); setAuthOpen(true); return; }
+    if (!target?.userId || target.userId===currentUserId) return;
+    if (!window.confirm("Block this creator? Their content will be hidden from your feed.")) return;
+    const {error}=await supabase.from("user_blocks").insert({blocker_id:currentUserId,blocked_id:target.userId});
+    if (error) setFeedNotice(error.message);
+    else { setDatabaseVideos(rows=>rows.filter(row=>row.userId!==target.userId)); setFeedNotice("Creator blocked."); }
+  };
   const handleAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!supabase) {
@@ -457,7 +498,7 @@ export default function HomePage() {
             <button onClick={toggleLike} className={liked.includes(active) ? "action liked" : "action"}><span><Heart fill={liked.includes(active) ? "currentColor" : "none"}/></span><b>{liked.includes(active) ? "1.3K" : "1.2K"}</b></button>
             <button className="action" onClick={() => setCommentsOpen(true)}><span><MessageSquare/></span><b>{commentItems[safeActive]?.length ?? 0} comments</b></button>
             <button onClick={toggleSave} className={saved.includes(active) ? "action liked" : "action"}><span><Bookmark fill={saved.includes(active) ? "currentColor" : "none"}/></span><b>{saved.includes(active) ? "Saved" : "Save"}</b></button>
-            <button className="action" onClick={() => { if (navigator.share) navigator.share({ title: "VILABULB", text: video.caption, url: window.location.href }).catch(() => {}); else navigator.clipboard?.writeText(window.location.href); }}><span><Share2/></span><b>Share</b></button>
+            <button className="action" onClick={() => { if (navigator.share) navigator.share({ title: "VILABULB", text: video.caption, url: window.location.href }).catch(() => {}); else navigator.clipboard?.writeText(window.location.href); }}><span><Share2/></span><b>Share</b></button><button className="action" onClick={reportCurrentVideo}><span><Shield/></span><b>Report</b></button><button className="action" onClick={blockCurrentCreator}><span><UserRound/></span><b>Block</b></button>
           </div>}
         </div>
         <div className="feed-controls"><button onClick={previous} aria-label="Previous video">↑</button><button onClick={next} aria-label="Next video">↓</button></div>
@@ -493,7 +534,7 @@ export default function HomePage() {
       {activeView === "inbox" && <section className="inbox-screen"><header className="inbox-header"><span className="brand-mark">V</span><h1>Inbox</h1><button aria-label="Search creators" onClick={()=>setActiveView("discover")}><Search/></button></header>
         {!currentUserId ? <div className="empty-panel"><strong>Log in to see your messages</strong><button className="signup-button" onClick={()=>{setAuthMode("login");setAuthOpen(true);}}>Log in</button></div> : <>
         <div className="story-strip"><button className="story-item" onClick={openCamera}><span className="story-avatar story-add"><Plus/></span><b>Create</b></button>{creatorProfiles.filter(p=>p.id!==currentUserId).slice(0,12).map(p=><button className="story-item" key={p.id} onClick={()=>setActiveView("discover")}><span className="story-avatar">{p.avatar_url?<img src={p.avatar_url} alt=""/>:<span>{(p.username||p.display_name||"V")[0].toUpperCase()}</span>}</span><b>{p.username||p.display_name||"Creator"}</b></button>)}</div>
-        <button className="activity-card" onClick={()=>setSettingsNotice("Your activity notifications will appear here as they are generated.")}><span className="activity-icon"><Activity/></span><span><b>Activity & new followers</b><small>Likes, comments and new followers</small></span><strong>{inboxCount>0?inboxCount:""}</strong></button>
+        <div className="activity-card activity-card-panel"><span className="activity-icon"><Activity/></span><span><b>Activity & new followers</b><small>Likes, comments and new followers</small></span><strong>{activityItems.filter(item=>!item.is_read).length || ""}</strong><button type="button" onClick={markNotificationsRead}>Mark all read</button></div><div className="activity-list">{activityBusy?<p>Loading activity…</p>:activityItems.length?activityItems.map(item=><article className={item.is_read?"activity-row":"activity-row unread"} key={item.id}><span className="activity-avatar">{item.actor?.avatar_url?<img src={item.actor.avatar_url} alt=""/>:(item.actor?.username||"V")[0].toUpperCase()}</span><span><b>@{item.actor?.username||item.actor?.display_name||"VILABULB member"}</b> {item.message||"interacted with your profile"}<small>{new Date(item.created_at).toLocaleString()}</small></span></article>):<p className="auth-hint">Your likes, comments and new follower alerts will appear here.</p>}</div>
         <div className="inbox-section-title">Messages <button onClick={()=>setActiveView("discover")}>Find people</button></div>
         {creatorProfiles.filter(p=>p.id!==currentUserId).slice(0,20).map(p=><button className="conversation-row" key={p.id} onClick={()=>setActiveView("discover")}><span className="conversation-avatar">{p.avatar_url?<img src={p.avatar_url} alt=""/>:(p.username||p.display_name||"V")[0].toUpperCase()}</span><span className="conversation-copy"><b>{p.display_name||p.username||"Creator"}</b><small>View profile to connect</small></span></button>)}
         {creatorProfiles.filter(p=>p.id!==currentUserId).length===0&&<div className="empty-panel"><MessageCircle/><strong>No conversations yet</strong><span>Discover creators and connect with the community.</span><button className="signup-button" onClick={()=>setActiveView("discover")}>Discover creators</button></div>}
