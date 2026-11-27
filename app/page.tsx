@@ -62,7 +62,7 @@ export default function HomePage() {
   const [activityItems, setActivityItems] = useState<any[]>([]);
   const [activityBusy, setActivityBusy] = useState(false);
   const [walletData, setWalletData] = useState<{coin_balance:number;earned_coins:number}>({coin_balance:0,earned_coins:0});
-  const [coinPacks, setCoinPacks] = useState<Array<{id:string;label:string;coins:number;amount:number}>>([]);
+  const [coinPurchaseCoins, setCoinPurchaseCoins] = useState(100);
   const [coinCheckoutBusy, setCoinCheckoutBusy] = useState(false);
   const [liveSessions, setLiveSessions] = useState<any[]>([]);
   const [liveTitle, setLiveTitle] = useState("");
@@ -164,7 +164,7 @@ export default function HomePage() {
       .then(({data})=>{ if(data) setWalletData(data); });
   }, [currentUserId]);
   useEffect(() => {
-    fetch("/api/coins/packages").then(response=>response.json()).then(result=>setCoinPacks(result.packages || [])).catch(()=>setCoinPacks([]));
+    
     const payment = new URLSearchParams(window.location.search).get("payment");
     if (payment === "success") {
       setActiveView("settings");
@@ -184,7 +184,7 @@ export default function HomePage() {
     }
   }, []);
 
-  const buyCoins = async (packageId:string) => {
+  const buyCoins = async (coins:number) => {
     if (!supabase || !currentUserId) {
       setAuthMode("login"); setAuthMessage("Log in before buying VILABULB coins."); setAuthOpen(true); return;
     }
@@ -195,7 +195,7 @@ export default function HomePage() {
       const response=await fetch("/api/coins/checkout",{
         method:"POST",
         headers:{"Content-Type":"application/json",Authorization:"Bearer "+sessionData.session.access_token},
-        body:JSON.stringify({packageId})
+        body:JSON.stringify({coins})
       });
       const result=await response.json();
       if(!response.ok || !result.checkoutUrl) throw new Error(result.error || "Could not start Flutterwave checkout.");
@@ -641,7 +641,7 @@ export default function HomePage() {
         {!currentUserId ? <div className="empty-panel"><strong>Log in to manage your settings</strong><button className="signup-button" onClick={()=>{setAuthMode("login");setAuthOpen(true);}}>Log in</button></div> : <>
         {settingsNotice && <p className="settings-notice" role="status">{settingsNotice}</p>}
         <div className="settings-section"><h2><UserCog/> Account</h2><button className="settings-row" onClick={()=>{setEditDisplayName(myProfile?.display_name || "");setEditBio(myProfile?.bio || "");setEditWebsite(myProfile?.website || "");setEditProfileOpen(true);}}><span><b>Edit profile</b><small>Change your display name, bio and website</small></span><span>›</span></button><button className="settings-row" onClick={()=>setAuthMessage("Password changes are managed through the secure password reset email flow. Use Forgot Password on the login screen.")}><span><b>Security and password</b><small>Manage sign-in and account security</small></span><span>›</span></button></div>
-        <div className="settings-section wallet-section"><h2><Wallet/> Creator wallet</h2><div className="wallet-balances"><div><small>Available coins</small><strong>{walletData.coin_balance.toLocaleString()}</strong></div><div><small>Earned coins</small><strong>{walletData.earned_coins.toLocaleString()}</strong></div></div><p className="auth-hint">Buy coins securely with Flutterwave. Coins are added only after payment verification.</p><div className="coin-pack-list">{coinPacks.map(pack=><div className="coin-pack-card" key={pack.id}><div><b>{pack.label}</b><strong>{pack.coins.toLocaleString()} coins</strong><small>₦{pack.amount.toLocaleString()}</small></div><button className="signup-button" type="button" disabled={coinCheckoutBusy} onClick={()=>void buyCoins(pack.id)}>{coinCheckoutBusy?"Please wait…":"Buy coins"}</button></div>)}</div><p className="auth-hint">Creator cash-outs are not included in this coin purchase integration.</p></div><div className="settings-section"><h2><Shield/> Privacy and visibility</h2>
+        <div className="settings-section wallet-section"><h2><Wallet/> Creator wallet</h2><div className="wallet-balances"><div><small>Available coins</small><strong>{walletData.coin_balance.toLocaleString()}</strong></div><div><small>Earned coins</small><strong>{walletData.earned_coins.toLocaleString()}</strong></div></div><p className="auth-hint">Buy coins securely with Flutterwave. Coins are added only after payment verification.</p><div className="coin-pack-list"><div className="coin-pack-card"><div><b>Choose your coins</b><strong>{coinPurchaseCoins.toLocaleString()} coins</strong><small>₦{(coinPurchaseCoins*10).toLocaleString()}</small></div><input aria-label="Number of coins to buy" type="number" min={10} max={600000} step={10} value={coinPurchaseCoins} onChange={event=>setCoinPurchaseCoins(Math.min(600000,Math.max(10,Math.floor(Number(event.target.value||10)/10)*10)))} /><button className="signup-button" type="button" disabled={coinCheckoutBusy || coinPurchaseCoins<10 || coinPurchaseCoins>600000 || coinPurchaseCoins%10!==0} onClick={()=>void buyCoins(coinPurchaseCoins)}>{coinCheckoutBusy?"Please wait…":"Buy coins"}</button></div><p className="auth-hint">Rate: 10 coins = ₦100. Choose from 10 to 600,000 coins in steps of 10. Maximum purchase: ₦6,000,000.</p></div><p className="auth-hint">Creator cash-outs are not included in this coin purchase integration.</p></div><div className="settings-section"><h2><Shield/> Privacy and visibility</h2>
           {[
             ["privateAccount","Private account","Only approve people you want to follow you"],
             ["allowComments","Allow comments","Let people comment on your videos"],
