@@ -125,7 +125,7 @@ export default function HomePage() {
     setActivityBusy(true);
     supabase.from("notifications").select("id,type,message,is_read,created_at,actor:profiles!notifications_actor_id_fkey(username,display_name,avatar_url)").eq("user_id",currentUserId).order("created_at",{ascending:false}).limit(40)
       .then(({data}) => { if (alive) setActivityItems(data ?? []); })
-      .finally(() => { if (alive) setActivityBusy(false); });
+      .then(() => { if (alive) setActivityBusy(false); }, () => { if (alive) setActivityBusy(false); });
     const channel = supabase.channel("vilabulb-notifications-"+currentUserId)
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications",filter:"user_id=eq."+currentUserId},payload=>setActivityItems(rows=>[payload.new as any,...rows].slice(0,40)))
       .subscribe();
