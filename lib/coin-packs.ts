@@ -1,11 +1,11 @@
-// Initial NGN price proposal. Confirm these prices before enabling live payments.
-export const COIN_PACKS = [
-  { id: "starter", label: "Starter", coins: 100, amount: 500 },
-  { id: "popular", label: "Popular", coins: 500, amount: 2000 },
-  { id: "creator", label: "Creator", coins: 1000, amount: 3500 }
-] as const;
+export const COINS_PER_NAIRA = 0.1;
+export const NAIRA_PER_COIN = 10;
+export const MIN_COIN_PURCHASE = 10;
+export const MAX_COIN_PURCHASE = 600_000;
+export const COIN_PURCHASE_STEP = 10;
 
-export type CoinPackId = (typeof COIN_PACKS)[number]["id"];
-export function getCoinPack(id: unknown) {
-  return COIN_PACKS.find((pack) => pack.id === id) ?? null;
+export function getCoinPurchase(coins: unknown) {
+  const count = Number(coins);
+  if (!Number.isSafeInteger(count) || count < MIN_COIN_PURCHASE || count > MAX_COIN_PURCHASE || count % COIN_PURCHASE_STEP !== 0) return null;
+  return { coins: count, amount: count * NAIRA_PER_COIN };
 }
