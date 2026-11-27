@@ -62,6 +62,8 @@ export default function HomePage() {
   const [activityItems, setActivityItems] = useState<any[]>([]);
   const [activityBusy, setActivityBusy] = useState(false);
   const [walletData, setWalletData] = useState<{coin_balance:number;earned_coins:number}>({coin_balance:0,earned_coins:0});
+  const [coinPacks, setCoinPacks] = useState<Array<{id:string;label:string;coins:number;amount:number}>>([]);
+  const [coinCheckoutBusy, setCoinCheckoutBusy] = useState(false);
   const [liveSessions, setLiveSessions] = useState<any[]>([]);
   const [liveTitle, setLiveTitle] = useState("");
   const [liveBusy, setLiveBusy] = useState(false);
@@ -161,6 +163,46 @@ export default function HomePage() {
     supabase.from("creator_wallets").select("coin_balance,earned_coins").eq("user_id",currentUserId).maybeSingle()
       .then(({data})=>{ if(data) setWalletData(data); });
   }, [currentUserId]);
+  useEffect(() => {
+    fetch("/api/coins/packages").then(response=>response.json()).then(result=>setCoinPacks(result.packages || [])).catch(()=>setCoinPacks([]));
+    const payment = new URLSearchParams(window.location.search).get("payment");
+    if (payment === "success") {
+      setSettingsNotice("Payment verified. Your coins have been added to your wallet.");
+      supabase?.auth.getUser().then(({data}) => {
+        if (data.user) supabase?.from("creator_wallets").select("coin_balance,earned_coins").eq("user_id",data.user.id).maybeSingle().then(({data:wallet})=>{if(wallet)setWalletData(wallet);});
+      });
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (payment === "pending") {
+      setSettingsNotice("Your payment is still being verified. Your coins will appear after confirmation.");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (payment === "not-completed") {
+      setSettingsNotice("Payment was not completed. No coins were added.");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
+  const buyCoins = async (packageId:string) => {
+    if (!supabase || !currentUserId) {
+      setAuthMode("login"); setAuthMessage("Log in before buying VILABULB coins."); setAuthOpen(true); return;
+    }
+    setCoinCheckoutBusy(true); setSettingsNotice("");
+    try {
+      const {data:sessionData,error:sessionError}=await supabase.auth.getSession();
+      if(sessionError || !sessionData.session) throw new Error("Please log in again to continue.");
+      const response=await fetch("/api/coins/checkout",{
+        method:"POST",
+        headers:{"Content-Type":"application/json",Authorization:"Bearer "+sessionData.session.access_token},
+        body:JSON.stringify({packageId})
+      });
+      const result=await response.json();
+      if(!response.ok || !result.checkoutUrl) throw new Error(result.error || "Could not start Flutterwave checkout.");
+      window.location.assign(result.checkoutUrl);
+    } catch(error) {
+      setSettingsNotice(error instanceof Error ? error.message : "Payment could not be started.");
+      setCoinCheckoutBusy(false);
+    }
+  };
+
   const sendGift = async (session:any, giftCode:string) => {
     if (!currentUserId || !supabase) { setAuthMode("login"); setAuthMessage("Log in to send a gift."); setAuthOpen(true); return; }
     const {data,error}=await supabase.rpc("send_live_gift",{p_creator_id:session.host_id,p_live_session_id:session.id,p_gift_code:giftCode});
@@ -596,7 +638,7 @@ export default function HomePage() {
         {!currentUserId ? <div className="empty-panel"><strong>Log in to manage your settings</strong><button className="signup-button" onClick={()=>{setAuthMode("login");setAuthOpen(true);}}>Log in</button></div> : <>
         {settingsNotice && <p className="settings-notice" role="status">{settingsNotice}</p>}
         <div className="settings-section"><h2><UserCog/> Account</h2><button className="settings-row" onClick={()=>{setEditDisplayName(myProfile?.display_name || "");setEditBio(myProfile?.bio || "");setEditWebsite(myProfile?.website || "");setEditProfileOpen(true);}}><span><b>Edit profile</b><small>Change your display name, bio and website</small></span><span>›</span></button><button className="settings-row" onClick={()=>setAuthMessage("Password changes are managed through the secure password reset email flow. Use Forgot Password on the login screen.")}><span><b>Security and password</b><small>Manage sign-in and account security</small></span><span>›</span></button></div>
-        <div className="settings-section wallet-section"><h2><Wallet/> Creator wallet</h2><div className="wallet-balances"><div><small>Available coins</small><strong>{walletData.coin_balance.toLocaleString()}</strong></div><div><small>Earned coins</small><strong>{walletData.earned_coins.toLocaleString()}</strong></div></div><p className="auth-hint">Coins can be used for LIVE gifts. Buying coins and cashing out creator rewards will be enabled after payment and payout provider verification.</p></div><div className="settings-section"><h2><Shield/> Privacy and visibility</h2>
+        <div className="settings-section wallet-section"><h2><Wallet/> Creator wallet</h2><div className="wallet-balances"><div><small>Available coins</small><strong>{walletData.coin_balance.toLocaleString()}</strong></div><div><small>Earned coins</small><strong>{walletData.earned_coins.toLocaleString()}</strong></div></div><p className="auth-hint">Buy coins securely with Flutterwave. Coins are added only after payment verification.</p><div className="coin-pack-list">{coinPacks.map(pack=><div className="coin-pack-card" key={pack.id}><div><b>{pack.label}</b><strong>{pack.coins.toLocaleString()} coins</strong><small>₦{pack.amount.toLocaleString()}</small></div><button className="signup-button" type="button" disabled={coinCheckoutBusy} onClick={()=>void buyCoins(pack.id)}>{coinCheckoutBusy?"Please wait…":"Buy coins"}</button></div>)}</div><p className="auth-hint">Creator cash-outs are not included in this coin purchase integration.</p></div><div className="settings-section"><h2><Shield/> Privacy and visibility</h2>
           {[
             ["privateAccount","Private account","Only approve people you want to follow you"],
             ["allowComments","Allow comments","Let people comment on your videos"],
