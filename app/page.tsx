@@ -183,7 +183,7 @@ export default function HomePage() {
           email: email.trim().toLowerCase(),
           password,
           options: {
-            emailRedirectTo: "https://vilabulb.netlify.app",
+            emailRedirectTo: window.location.origin,
             data: {
               username: cleanUsername || null,
               display_name: username.trim() || email.trim().split("@")[0]
@@ -259,7 +259,7 @@ export default function HomePage() {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: "https://vilabulb.netlify.app" }
+        options: { redirectTo: window.location.origin }
       });
       if (error) throw error;
     } catch (error) {
@@ -277,10 +277,11 @@ export default function HomePage() {
     if (!supabase) return;
     let alive = true;
     const loadFeed = async () => {
-      const { data, error } = await supabase!.from("videos").select("id,user_id,caption,video_url,created_at,profiles!videos_user_id_fkey(username,display_name)").eq("status","published").eq("visibility","public").order("created_at",{ascending:false}).limit(30);
+      const [{data,error},{data:blockedRows}] = await Promise.all([supabase!.from("videos").select("id,user_id,caption,video_url,created_at,profiles!videos_user_id_fkey(username,display_name)").eq("status","published").eq("visibility","public").order("created_at",{ascending:false}).limit(30), currentUserId ? supabase!.from("user_blocks").select("blocked_id").eq("blocker_id",currentUserId) : Promise.resolve({data:[] as any[]})]);
       if (!alive) return;
       if (error) { setFeedNotice("Could not load community videos yet."); return; }
-      const mapped = (data ?? []).map((item: any) => ({ id:item.id, userId:item.user_id, user:item.profiles?.username || item.profiles?.display_name || "creator", caption:item.caption || "", sound:"Original sound", tag:"#vilabulb", url:item.video_url }));
+      const blockedIds = new Set((blockedRows ?? []).map((row:any)=>row.blocked_id));
+      const mapped = (data ?? []).filter((item:any)=>!blockedIds.has(item.user_id)).map((item: any) => ({ id:item.id, userId:item.user_id, user:item.profiles?.username || item.profiles?.display_name || "creator", caption:item.caption || "", sound:"Original sound", tag:"#vilabulb", url:item.video_url }));
       setDatabaseVideos(mapped);
     };
     loadFeed();
