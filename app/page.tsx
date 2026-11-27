@@ -167,15 +167,18 @@ export default function HomePage() {
     fetch("/api/coins/packages").then(response=>response.json()).then(result=>setCoinPacks(result.packages || [])).catch(()=>setCoinPacks([]));
     const payment = new URLSearchParams(window.location.search).get("payment");
     if (payment === "success") {
+      setActiveView("settings");
       setSettingsNotice("Payment verified. Your coins have been added to your wallet.");
       supabase?.auth.getUser().then(({data}) => {
         if (data.user) supabase?.from("creator_wallets").select("coin_balance,earned_coins").eq("user_id",data.user.id).maybeSingle().then(({data:wallet})=>{if(wallet)setWalletData(wallet);});
       });
       window.history.replaceState({}, "", window.location.pathname);
     } else if (payment === "pending") {
+      setActiveView("settings");
       setSettingsNotice("Your payment is still being verified. Your coins will appear after confirmation.");
       window.history.replaceState({}, "", window.location.pathname);
     } else if (payment === "not-completed") {
+      setActiveView("settings");
       setSettingsNotice("Payment was not completed. No coins were added.");
       window.history.replaceState({}, "", window.location.pathname);
     }
