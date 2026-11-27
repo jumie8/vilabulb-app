@@ -91,6 +91,9 @@ export default function HomePage() {
   const [cameraError, setCameraError] = useState("");
   const cameraRef = useRef<HTMLVideoElement|null>(null);
   const cameraStream = useRef<MediaStream|null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder|null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -371,6 +374,41 @@ export default function HomePage() {
     try { const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:cameraFacing === "user" ? "environment" : "user"},audio:true}); cameraStream.current=stream; if(cameraRef.current) cameraRef.current.srcObject=stream; setCameraError(""); }
     catch { setCameraError("Could not switch camera. Check camera permissions."); }
   };
+  const captureOrStopRecording = () => {
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      return;
+    }
+    if (!cameraStream.current) { setCameraError("Camera is not ready. Allow camera access and try again."); return; }
+    if (cameraMode === "PHOTO" || cameraMode === "TEXT") {
+      setCameraError("Photo and text capture are being prepared. Choose 15s or 60s to record a video.");
+      return;
+    }
+    if (typeof MediaRecorder === "undefined") { setCameraError("Video recording is not supported by this browser. Please update Chrome."); return; }
+    const mime = ["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"].find(type=>MediaRecorder.isTypeSupported(type));
+    try {
+      recordedChunksRef.current = [];
+      const recorder = new MediaRecorder(cameraStream.current, mime ? {mimeType:mime} : undefined);
+      mediaRecorderRef.current = recorder;
+      recorder.ondataavailable = event => { if (event.data.size) recordedChunksRef.current.push(event.data); };
+      recorder.onerror = () => { setIsRecording(false); setCameraError("Recording failed. Please try again."); };
+      recorder.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current,{type:recorder.mimeType || "video/webm"});
+        if (!blob.size) { setCameraError("No video was recorded. Please try again."); return; }
+        const file = new File([blob],"vilabulb-recording-"+Date.now()+".webm",{type:blob.type});
+        setSelectedVideoFile(file);
+        cameraStream.current?.getTracks().forEach(track=>track.stop());
+        cameraStream.current=null;
+        setCameraOpen(false);
+        setUploadOpen(true);
+      };
+      recorder.start(250);
+      setIsRecording(true);
+      const duration = cameraMode === "60s" ? 60000 : cameraMode === "3m" ? 180000 : 15000;
+      window.setTimeout(() => { if (recorder.state === "recording") { recorder.stop(); setIsRecording(false); } }, duration);
+    } catch { setCameraError("Could not start recording. Please try again."); }
+  };
   const closeCamera = () => {
     cameraStream.current?.getTracks().forEach(track=>track.stop());
     cameraStream.current=null;
@@ -597,7 +635,7 @@ export default function HomePage() {
       {cameraGrid && <div className="camera-grid-overlay"/>}
       <aside className="camera-side-tools"><button onClick={()=>setCameraFlash(v=>!v)} aria-label="Flash">{cameraFlash?"⚡":"ϟ"}</button><button onClick={()=>setCameraTimer(v=>!v)} aria-label="Timer">{cameraTimer?"3s":"◷"}</button><button onClick={()=>setCameraGrid(v=>!v)} aria-label="Grid">▦</button><button onClick={()=>setCameraZoom(v=>!v)} aria-label="Zoom">{cameraZoom?"1×":"↗"}</button><button onClick={()=>setFeedNotice("Beauty effects are coming soon.")} aria-label="Effects">✧</button><button onClick={()=>setFeedNotice("More camera tools are coming soon.")}>⌄</button></aside>
       <div className="camera-tools">{["3m","60s","15s","PHOTO","TEXT"].map(mode=><button key={mode} className={cameraMode===mode?"selected":""} onClick={()=>setCameraMode(mode)}>{mode}</button>)}</div>
-      <footer className="camera-bottom"><button className="camera-gallery" onClick={()=>{closeCamera();setUploadOpen(true);}}><ImageIcon/></button><button className="capture-button" onClick={()=>{closeCamera();setUploadOpen(true);}}>●</button><button className="camera-next" onClick={()=>{closeCamera();setUploadOpen(true);}}>Next</button></footer>
+      <footer className="camera-bottom"><button className="camera-gallery" onClick={()=>{closeCamera();setUploadOpen(true);}}><ImageIcon/></button><button className={isRecording?"capture-button recording":"capture-button"} onClick={captureOrStopRecording}>{isRecording?"■":"●"}</button><button className="camera-next" onClick={()=>{if(isRecording) mediaRecorderRef.current?.stop(); else {closeCamera();setUploadOpen(true);}}}>Next</button></footer>
       <nav className="camera-tabs"><button onClick={()=>{closeCamera();setActiveView("live");}}>LIVE</button><button className="active">CAMERA</button><button onClick={()=>{closeCamera();setCreateOpen(true);}}>CREATE</button></nav>
     </div>}
     {createOpen && <div className="create-screen"><header className="create-header"><button onClick={()=>setCreateOpen(false)}><X size={30}/></button><h1>CREATE</h1><span/></header><div className="create-tools"><button onClick={()=>setFeedNotice("Photo editor is coming soon.")}>◩<span>Photo editor</span></button><button onClick={()=>setFeedNotice("AutoCut is coming soon.")}>◧<span>AutoCut</span></button><button onClick={()=>setFeedNotice("Automatic captions are coming soon.")}>▤<span>Captions</span></button><button onClick={()=>setFeedNotice("AI Self is coming soon.")}>AI<span>AI Self</span></button><button onClick={()=>setFeedNotice("Cutout is coming soon.")}>▧<span>Cutout</span></button></div><div className="create-actions"><button className="new-video-tile" onClick={()=>{setCreateOpen(false);setUploadOpen(true);}}><strong>＋</strong><span>New video</span></button><button className="drafts-tile" onClick={()=>setFeedNotice("Your saved drafts will appear here.")}>▣<span>Drafts</span></button></div><div className="templates-heading"><h2>Templates</h2><button onClick={()=>setFeedNotice("Template search is coming soon.")}><Search/></button></div><div className="template-tabs"><button className="active">For You</button><button>Viral Song</button><button>Trendy</button><button>AI</button><button>Monthly</button></div><div className="template-placeholder"><div>✨<strong>Creative templates</strong><span>Choose New video to upload and edit a clip</span></div><div>🎬<strong>Trending transitions</strong><span>More templates coming soon</span></div></div><nav className="camera-tabs"><button onClick={()=>{setCreateOpen(false);setActiveView("live");}}>LIVE</button><button onClick={()=>{setCreateOpen(false);void openCamera();}}>CAMERA</button><button className="active">CREATE</button></nav></div>}
