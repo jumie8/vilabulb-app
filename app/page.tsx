@@ -464,8 +464,8 @@ export default function HomePage() {
     <div className="live-studio-controls">
       <button type="button" onClick={()=>setLiveFacing(v=>v==="user"?"environment":"user")}><RefreshCw/><span>Flip</span></button>
       <button type="button" className={liveBeauty?"selected":""} onClick={()=>setLiveBeauty(v=>!v)}><Activity/><span>{liveBeauty?"Beauty on":"Beautify"}</span></button>
-      <button type="button" onClick={()=>setLivePreviewError("Camera effects are not available yet.")}><ImageIcon/><span>Effects</span></button>
-      <button type="button" onClick={()=>setLivePreviewError("Allow camera and microphone access in your browser settings.")}><Settings/><span>Settings</span></button>
+      <button type="button" onClick={()=>setFeedNotice("Live effects are coming soon. Your camera preview is still active.")}><ImageIcon/><span>Effects</span></button>
+      <button type="button" onClick={()=>setFeedNotice("To manage camera access, open your browser site settings and allow camera and microphone.")}><Settings/><span>Settings</span></button>
       <button type="button" onClick={()=>{if(navigator.share) void navigator.share({title:"Join me on VILABULB",text:"Watch my live on VILABULB"}).catch(()=>{});else setFeedNotice("Share VILABULB with your friends to invite them.");}}><Share2/><span>Share</span></button>
     </div>
     <form className="live-studio-action" onSubmit={startLiveSession}>
