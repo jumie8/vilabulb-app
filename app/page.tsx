@@ -61,6 +61,7 @@ export default function HomePage() {
   const [inboxCount, setInboxCount] = useState(0);
   const [activityItems, setActivityItems] = useState<any[]>([]);
   const [activityBusy, setActivityBusy] = useState(false);
+  const [walletData, setWalletData] = useState<{coin_balance:number;earned_coins:number}>({coin_balance:0,earned_coins:0});
   const [liveSessions, setLiveSessions] = useState<any[]>([]);
   const [liveTitle, setLiveTitle] = useState("");
   const [liveBusy, setLiveBusy] = useState(false);
@@ -154,6 +155,18 @@ export default function HomePage() {
     const {error}=await supabase.from("user_blocks").insert({blocker_id:currentUserId,blocked_id:target.userId});
     if (error) setFeedNotice(error.message);
     else { setDatabaseVideos(rows=>rows.filter(row=>row.userId!==target.userId)); setFeedNotice("Creator blocked."); }
+  };
+  useEffect(() => {
+    if (!supabase || !currentUserId) { setWalletData({coin_balance:0,earned_coins:0}); return; }
+    supabase.from("creator_wallets").select("coin_balance,earned_coins").eq("user_id",currentUserId).maybeSingle()
+      .then(({data})=>{ if(data) setWalletData(data); });
+  }, [currentUserId]);
+  const sendGift = async (session:any, giftCode:string) => {
+    if (!currentUserId || !supabase) { setAuthMode("login"); setAuthMessage("Log in to send a gift."); setAuthOpen(true); return; }
+    const {data,error}=await supabase.rpc("send_live_gift",{p_creator_id:session.host_id,p_live_session_id:session.id,p_gift_code:giftCode});
+    if(error) { setFeedNotice(error.message); return; }
+    setWalletData(value=>({...value,coin_balance:Math.max(0,value.coin_balance-(data?.coin_cost||0))}));
+    setFeedNotice("Your "+giftCode+" gift was sent!");
   };
   const handleAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -566,7 +579,7 @@ export default function HomePage() {
   </div>
   {feedNotice && <p className="feed-notice" role="status">{feedNotice}</p>}
   <div className="live-list-heading"><h2>Creators LIVE now</h2><span>{liveSessions.length}</span></div>
-  <div className="live-list">{liveSessions.map(session=><article className="live-card" key={session.id}><span className="live-badge">● LIVE</span><strong>{session.title}</strong><p>@{session.profiles?.username || session.profiles?.display_name || "creator"}</p><small>Started {new Date(session.started_at).toLocaleString()}</small>{session.host_id===currentUserId ? <><button className="follow" onClick={()=>setActiveLiveRoom({roomName:session.room_name,isHost:true})}>Rejoin live</button><button className="follow" onClick={()=>endLiveSession(session.id)}>End live</button></> : <button className="follow" onClick={()=>{if(!currentUserId){setAuthMode("login");setAuthMessage("Log in to watch live.");setAuthOpen(true);}else setActiveLiveRoom({roomName:session.room_name,isHost:false});}}>Watch live</button>}</article>)}</div>
+  <div className="live-list">{liveSessions.map(session=><article className="live-card" key={session.id}><span className="live-badge">● LIVE</span><strong>{session.title}</strong><p>@{session.profiles?.username || session.profiles?.display_name || "creator"}</p><small>Started {new Date(session.started_at).toLocaleString()}</small>{session.host_id!==currentUserId && <button className="follow" onClick={()=>sendGift(session,"heart")}>Send 5-coin heart</button>}{session.host_id===currentUserId ? <><button className="follow" onClick={()=>setActiveLiveRoom({roomName:session.room_name,isHost:true})}>Rejoin live</button><button className="follow" onClick={()=>endLiveSession(session.id)}>End live</button></> : <button className="follow" onClick={()=>{if(!currentUserId){setAuthMode("login");setAuthMessage("Log in to watch live.");setAuthOpen(true);}else setActiveLiveRoom({roomName:session.room_name,isHost:false});}}>Watch live</button>}</article>)}</div>
   {liveSessions.length===0 && <div className="empty-panel"><Radio size={34}/><strong>No creators are live right now</strong><span>Be the first to go live on VILABULB.</span></div>}
 </section>}
       {activeView === "inbox" && <section className="inbox-screen"><header className="inbox-header"><span className="brand-mark">V</span><h1>Inbox</h1><button aria-label="Search creators" onClick={()=>setActiveView("discover")}><Search/></button></header>
@@ -582,7 +595,7 @@ export default function HomePage() {
         {!currentUserId ? <div className="empty-panel"><strong>Log in to manage your settings</strong><button className="signup-button" onClick={()=>{setAuthMode("login");setAuthOpen(true);}}>Log in</button></div> : <>
         {settingsNotice && <p className="settings-notice" role="status">{settingsNotice}</p>}
         <div className="settings-section"><h2><UserCog/> Account</h2><button className="settings-row" onClick={()=>{setEditDisplayName(myProfile?.display_name || "");setEditBio(myProfile?.bio || "");setEditWebsite(myProfile?.website || "");setEditProfileOpen(true);}}><span><b>Edit profile</b><small>Change your display name, bio and website</small></span><span>›</span></button><button className="settings-row" onClick={()=>setAuthMessage("Password changes are managed through the secure password reset email flow. Use Forgot Password on the login screen.")}><span><b>Security and password</b><small>Manage sign-in and account security</small></span><span>›</span></button></div>
-        <div className="settings-section"><h2><Shield/> Privacy and visibility</h2>
+        <div className="settings-section wallet-section"><h2><Wallet/> Creator wallet</h2><div className="wallet-balances"><div><small>Available coins</small><strong>{walletData.coin_balance.toLocaleString()}</strong></div><div><small>Earned coins</small><strong>{walletData.earned_coins.toLocaleString()}</strong></div></div><p className="auth-hint">Coins can be used for LIVE gifts. Buying coins and cashing out creator rewards will be enabled after payment and payout provider verification.</p></div><div className="settings-section"><h2><Shield/> Privacy and visibility</h2>
           {[
             ["privateAccount","Private account","Only approve people you want to follow you"],
             ["allowComments","Allow comments","Let people comment on your videos"],
