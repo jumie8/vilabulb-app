@@ -63,6 +63,11 @@ export default function HomePage() {
   const [liveTitle, setLiveTitle] = useState("");
   const [liveBusy, setLiveBusy] = useState(false);
   const [activeLiveRoom, setActiveLiveRoom] = useState<{roomName:string;isHost:boolean}|null>(null);
+  const livePreviewRef = useRef<HTMLVideoElement|null>(null);
+  const livePreviewStream = useRef<MediaStream|null>(null);
+  const [liveFacing, setLiveFacing] = useState<"user"|"environment">("user");
+  const [liveBeauty, setLiveBeauty] = useState(false);
+  const [livePreviewError, setLivePreviewError] = useState("");
   const [userSettings, setUserSettings] = useState<Record<string, any>>({ notifications:true, likes:true, comments:true, follows:true, mentions:true, directMessages:true, privateAccount:false, allowComments:true, allowMentions:true, allowMessages:true, allowDownloads:false, hideLikedVideos:true, hideFollowingList:true, dataSaver:false, autoplay:true });
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [settingsNotice, setSettingsNotice] = useState("");
@@ -87,6 +92,18 @@ export default function HomePage() {
     });
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (activeView !== "live" || activeLiveRoom) return;
+    let cancelled = false;
+    setLivePreviewError("");
+    navigator.mediaDevices?.getUserMedia({ video: { facingMode: liveFacing }, audio: true }).then(stream => {
+      if (cancelled) { stream.getTracks().forEach(track => track.stop()); return; }
+      livePreviewStream.current = stream;
+      if (livePreviewRef.current) livePreviewRef.current.srcObject = stream;
+    }).catch(() => { if (!cancelled) setLivePreviewError("Allow camera and microphone access to preview your LIVE."); });
+    return () => { cancelled = true; livePreviewStream.current?.getTracks().forEach(track => track.stop()); livePreviewStream.current = null; };
+  }, [activeView, activeLiveRoom, liveFacing]);
 
   const handleAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -276,6 +293,8 @@ export default function HomePage() {
     if (!currentUserId) { setAuthMode("login"); setAuthMessage("Log in to go live."); setAuthOpen(true); return; }
     if (!supabase) return;
     setLiveBusy(true);
+    livePreviewStream.current?.getTracks().forEach(track => track.stop());
+    livePreviewStream.current = null;
     const roomName = "vilabulb-" + crypto.randomUUID();
     const { error } = await supabase!.from("live_sessions").insert({host_id:currentUserId,title:liveTitle.trim(),room_name:roomName,status:"live"});
     if (error) setFeedNotice(error.message);
