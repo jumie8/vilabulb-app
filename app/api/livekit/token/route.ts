@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { AccessToken } from "livekit-server-sdk";
+import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
 
 export const runtime = "nodejs";
 
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const livekitApiKey = process.env.LIVEKIT_API_KEY;
     const livekitApiSecret = process.env.LIVEKIT_API_SECRET;
     if (!supabaseUrl || !supabaseAnonKey || !livekitUrl || !livekitApiKey || !livekitApiSecret) {
-      return NextResponse.json({ error: "LiveKit is not configured yet. Add LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET to your Vercel project environment variables." }, { status: 503 });
+      return NextResponse.json({ error: "LiveKit is not configured. Add LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET to your hosting environment." }, { status: 503 });
     }
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -28,38 +28,53 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const roomName = typeof body.roomName === "string" ? body.roomName : "";
+    const requestedRole = body.role;
     if (!/^vilabulb-[0-9a-f-]{36}$/i.test(roomName)) return NextResponse.json({ error: "Invalid live room." }, { status: 400 });
+    if (!["host", "guest", "viewer"].includes(requestedRole)) return NextResponse.json({ error: "Choose whether to watch or join the battle." }, { status: 400 });
 
-    const { data: liveRoom, error: roomError } = await supabase
-      .from("live_sessions")
-      .select("id,host_id,status")
-      .eq("room_name", roomName)
-      .eq("status", "live")
-      .maybeSingle();
+    const { data: liveRoom, error: roomError } = await supabase.from("live_sessions")
+      .select("id,host_id,status").eq("room_name", roomName).eq("status", "live").maybeSingle();
     if (roomError || !liveRoom) return NextResponse.json({ error: "This live room has ended or does not exist." }, { status: 404 });
 
     const isHost = liveRoom.host_id === authData.user.id;
-    const { data: profile } = await supabase.from("profiles").select("username,display_name").eq("id", authData.user.id).maybeSingle();
+    if ((requestedRole === "host") !== isHost) return NextResponse.json({ error: "Only the host can connect as host." }, { status: 403 });
+    if (requestedRole === "guest" && isHost) return NextResponse.json({ error: "The host is already on stage." }, { status: 400 });
+
+    const httpUrl = livekitUrl.replace(/^wss:/i, "https:").replace(/^ws:/i, "http:");
+    const roomService = new RoomServiceClient(httpUrl, livekitApiKey, livekitApiSecret);
+    let participants: any[] = [];
+    try { participants = await roomService.listParticipants(roomName); }
+    catch {
+      if (!isHost) return NextResponse.json({ error: "The host has not started the live stage yet. Please try again." }, { status: 409 });
+      await roomService.createRoom({ name: roomName });
+    }
+
     const identity = authData.user.id;
+    const existing = participants.find((participant: any) => participant.identity === identity);
+    if (requestedRole === "guest") {
+      const activeStage = participants.filter((participant: any) => {
+        try { const metadata = JSON.parse(participant.metadata || "{}"); return metadata.role === "host" || metadata.role === "guest"; }
+        catch { return false; }
+      });
+      if (!existing && activeStage.length >= 4) return NextResponse.json({ error: "This battle already has 4 people on stage. You can still watch the LIVE." }, { status: 409 });
+    }
+
+    const { data: profile } = await supabase.from("profiles").select("username,display_name").eq("id", identity).maybeSingle();
     const participantName = profile?.username || profile?.display_name || "VILABULB creator";
+    const role = isHost ? "host" : requestedRole;
     const token = new AccessToken(livekitApiKey, livekitApiSecret, {
-      identity,
-      name: participantName,
-      ttl: "4h"
+      identity, name: participantName, metadata: JSON.stringify({ role }), ttl: "4h"
     });
     token.addGrant({
-      roomJoin: true,
-      room: roomName,
-      canPublish: isHost,
-      canSubscribe: true,
-      canPublishData: true
+      roomJoin: true, room: roomName,
+      canPublish: role === "host" || role === "guest",
+      canSubscribe: true, canPublishData: true
     });
 
-    const serverUrl = /^wss?:\/\//i.test(livekitUrl)
-      ? livekitUrl
-      : `wss://${livekitUrl.replace(/^https?:\/\//i, "")}`;
-    return NextResponse.json({ token: await token.toJwt(), serverUrl, isHost });
-  } catch {
+    const serverUrl = /^wss?:\/\//i.test(livekitUrl) ? livekitUrl : `wss://${livekitUrl.replace(/^https?:\/\//i, "")}`;
+    return NextResponse.json({ token: await token.toJwt(), serverUrl, role });
+  } catch (error) {
+    console.error("LiveKit token error:", error);
     return NextResponse.json({ error: "Could not prepare your live connection. Please try again." }, { status: 500 });
   }
 }
