@@ -319,3 +319,17 @@
 .coin-pack-card small{font-size:13px;color:var(--text-secondary,#c8b8d5)}
 .coin-pack-card .signup-button{white-space:nowrap;min-width:96px}
 @media(max-width:520px){.coin-pack-card{align-items:flex-start;flex-direction:column}.coin-pack-card .signup-button{width:100%}}
+
+
+/* Four-person LIVE battle stage */
+.live-card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.live-card-actions .follow{flex:1}
+.live-join-battle{background:linear-gradient(100deg,#ff286f,#a62cff)!important;color:#fff!important}
+.live-room-overlay{position:fixed;inset:0;z-index:1400;background:#050508;color:#fff;display:flex;flex-direction:column}
+.live-room-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(12px + env(safe-area-inset-top)) 14px 12px;background:#101016}
+.live-room-header>div{display:flex;align-items:center;gap:10px}
+.live-room-header button{border:0;border-radius:20px;background:#282832;color:#fff;padding:10px 14px;font-weight:700}
+.livekit-stage{flex:1;min-height:0;overflow:auto}
+.live-room-message{padding:24px;text-align:center;color:#fff}
+.live-room-error{color:#ff9ab5}
+.live-room-error button{display:block;margin:14px auto 0;border:0;border-radius:20px;padding:10px 18px;background:#ff286f;color:#fff}
