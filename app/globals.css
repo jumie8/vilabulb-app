@@ -308,3 +308,14 @@
 .wallet-balances strong{font-size:25px;color:#fff}
 .camera-bottom .capture-button.recording{background:#ff315e;color:#ff315e;box-shadow:0 0 0 5px #ffffff55,inset 0 0 0 25px #ff315e;animation:record-pulse 1s infinite alternate}
 @keyframes record-pulse{from{box-shadow:0 0 0 4px #ffffff55,inset 0 0 0 25px #ff315e}to{box-shadow:0 0 0 9px #ff315e66,inset 0 0 0 25px #ff315e}}
+
+
+/* Flutterwave coin purchase cards */
+.coin-pack-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:14px}
+.coin-pack-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid rgba(196,115,230,.28);border-radius:14px;background:rgba(126,55,157,.09)}
+.coin-pack-card>div{display:flex;flex-direction:column;gap:4px}
+.coin-pack-card b{font-size:13px;color:var(--text-secondary,#bda9ca)}
+.coin-pack-card strong{font-size:18px;color:var(--text-primary,#fff)}
+.coin-pack-card small{font-size:13px;color:var(--text-secondary,#c8b8d5)}
+.coin-pack-card .signup-button{white-space:nowrap;min-width:96px}
+@media(max-width:520px){.coin-pack-card{align-items:flex-start;flex-direction:column}.coin-pack-card .signup-button{width:100%}}
