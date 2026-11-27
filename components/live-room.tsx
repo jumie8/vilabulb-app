@@ -7,11 +7,11 @@ import "@livekit/components-styles";
 
 type LiveRoomProps = { roomName: string; isHost: boolean; isGuest?: boolean; liveSessionId: string; creatorId: string; onLeave: () => void };
 const LIVE_GIFTS = [
-  {code:"heart",name:"Heart",emoji:"🥰",coins:5},{code:"rose",name:"Rose",emoji:"🌹",coins:10},
+  {code:"heart",name:"Heart",emoji:"🥰",coins:5},{code:"rose",name:"Rose",emoji:"🌹",coins:1},
   {code:"star",name:"Star",emoji:"⭐",coins:50},{code:"diamond",name:"Diamond",emoji:"💎",coins:100},
-  {code:"tiktok",name:"TikTok",emoji:"🎵",coins:1},{code:"heart_me",name:"Heart Me",emoji:"❤️",coins:1},
+  {code:"heart_me",name:"Heart Me",emoji:"❤️",coins:1},
   {code:"finger_heart",name:"Finger Heart",emoji:"🫰",coins:5},{code:"ice_cream",name:"Ice Cream Cone",emoji:"🍦",coins:1},
-  {code:"cake_slice",name:"Cake Slice",emoji:"🍰",coins:10},{code:"lion",name:"Lion",emoji:"🦁",coins:4888},
+  {code:"cake_slice",name:"Cake Slice",emoji:"🍰",coins:10},{code:"bike",name:"Bike",emoji:"🚲",coins:20},{code:"lion",name:"Lion",emoji:"🦁",coins:4888},
   {code:"castle",name:"Castle",emoji:"🏰",coins:10000},{code:"sports_car",name:"Sports Car",emoji:"🏎️",coins:50000},
   {code:"airplane",name:"Airplane",emoji:"✈️",coins:100000}
 ];
