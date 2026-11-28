@@ -5,6 +5,7 @@ import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  let stage = "reading request";
   try {
     const authorization = request.headers.get("authorization");
     const accessToken = authorization?.startsWith("Bearer ") ? authorization.slice(7) : "";
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    stage = "checking your VILABULB login";
     const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
       global: { headers: { Authorization: `Bearer ${accessToken}` } },
       auth: { persistSession: false, autoRefreshToken: false }
@@ -40,6 +42,7 @@ export async function POST(request: NextRequest) {
     const { data: authData, error: authError } = await supabase.auth.getUser(accessToken);
     if (authError || !authData.user) return NextResponse.json({ error: "Your login session has expired. Please log in again." }, { status: 401 });
 
+    stage = "checking the live session";
     const body = await request.json();
     const roomName = typeof body.roomName === "string" ? body.roomName : "";
     const requestedRole = body.role;
@@ -54,6 +57,7 @@ export async function POST(request: NextRequest) {
     if ((requestedRole === "host") !== isHost) return NextResponse.json({ error: "Only the host can connect as host." }, { status: 403 });
     if (requestedRole === "guest" && isHost) return NextResponse.json({ error: "The host is already on stage." }, { status: 400 });
 
+    stage = "connecting to LiveKit room service";
     const httpUrl = livekitUrl!.replace(/^wss:/i, "https:").replace(/^ws:/i, "http:");
     const roomService = new RoomServiceClient(httpUrl, livekitApiKey!, livekitApiSecret!);
     let participants: any[] = [];
@@ -63,6 +67,7 @@ export async function POST(request: NextRequest) {
       await roomService.createRoom({ name: roomName });
     }
 
+    stage = "preparing your livestream access token";
     const identity = authData.user.id;
     const existing = participants.find((participant: any) => participant.identity === identity);
     if (requestedRole === "guest") {
@@ -88,7 +93,11 @@ export async function POST(request: NextRequest) {
     const serverUrl = /^wss?:\/\//i.test(livekitUrl!) ? livekitUrl! : `wss://${livekitUrl!.replace(/^https?:\/\//i, "")}`;
     return NextResponse.json({ token: await token.toJwt(), serverUrl, role });
   } catch (error) {
-    console.error("LiveKit token error:", error);
-    return NextResponse.json({ error: "Could not prepare your live connection. Please try again." }, { status: 500 });
+    const detail = error instanceof Error ? error.message : "Unknown server error";
+    console.error("LiveKit token error at stage:", stage, error);
+    return NextResponse.json(
+      { error: "Live connection failed while " + stage + ". " + detail.slice(0, 220) },
+      { status: 500 }
+    );
   }
 }
