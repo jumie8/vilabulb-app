@@ -30,10 +30,11 @@ export default function LiveRoom({ roomName, isHost, isGuest = false, liveSessio
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(()=>{
-    if(!supabase)return;
+    const client = supabase;
+    if(!client)return;
     let alive=true;
-    supabase.auth.getUser().then(({data})=>{
-      if(data.user)supabase.from("creator_wallets").select("coin_balance").eq("user_id",data.user.id).maybeSingle()
+    client.auth.getUser().then(({data})=>{
+      if(data.user)client.from("creator_wallets").select("coin_balance").eq("user_id",data.user.id).maybeSingle()
         .then(({data:wallet})=>{if(alive)setCoinBalance(wallet?.coin_balance??0);});
     });
     return()=>{alive=false;};
