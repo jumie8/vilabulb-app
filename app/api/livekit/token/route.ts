@@ -10,16 +10,30 @@ export async function POST(request: NextRequest) {
     const accessToken = authorization?.startsWith("Bearer ") ? authorization.slice(7) : "";
     if (!accessToken) return NextResponse.json({ error: "Please log in to join a live room." }, { status: 401 });
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    const livekitUrl = process.env.LIVEKIT_URL;
-    const livekitApiKey = process.env.LIVEKIT_API_KEY;
-    const livekitApiSecret = process.env.LIVEKIT_API_SECRET;
-    if (!supabaseUrl || !supabaseAnonKey || !livekitUrl || !livekitApiKey || !livekitApiSecret) {
-      return NextResponse.json({ error: "LiveKit is not configured. Add LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET to your hosting environment." }, { status: 503 });
+    // Keep the server route consistent with lib/supabase.ts, which supports both URL names.
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_VILABULB_SUPABASE_URL?.trim() ||
+      process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+    const livekitUrl = process.env.LIVEKIT_URL?.trim();
+    const livekitApiKey = process.env.LIVEKIT_API_KEY?.trim();
+    const livekitApiSecret = process.env.LIVEKIT_API_SECRET?.trim();
+
+    const missing: string[] = [];
+    if (!supabaseUrl) missing.push("NEXT_PUBLIC_SUPABASE_URL (or NEXT_PUBLIC_VILABULB_SUPABASE_URL)");
+    if (!supabaseAnonKey) missing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+    if (!livekitUrl) missing.push("LIVEKIT_URL");
+    if (!livekitApiKey) missing.push("LIVEKIT_API_KEY");
+    if (!livekitApiSecret) missing.push("LIVEKIT_API_SECRET");
+    if (missing.length) {
+      console.error("VILABULB live configuration missing:", missing.join(", "));
+      return NextResponse.json(
+        { error: "Server configuration is missing: " + missing.join(", ") + ". Add the listed variables to the Vercel Production environment, then redeploy." },
+        { status: 503 }
+      );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
       global: { headers: { Authorization: `Bearer ${accessToken}` } },
       auth: { persistSession: false, autoRefreshToken: false }
     });
@@ -40,8 +54,8 @@ export async function POST(request: NextRequest) {
     if ((requestedRole === "host") !== isHost) return NextResponse.json({ error: "Only the host can connect as host." }, { status: 403 });
     if (requestedRole === "guest" && isHost) return NextResponse.json({ error: "The host is already on stage." }, { status: 400 });
 
-    const httpUrl = livekitUrl.replace(/^wss:/i, "https:").replace(/^ws:/i, "http:");
-    const roomService = new RoomServiceClient(httpUrl, livekitApiKey, livekitApiSecret);
+    const httpUrl = livekitUrl!.replace(/^wss:/i, "https:").replace(/^ws:/i, "http:");
+    const roomService = new RoomServiceClient(httpUrl, livekitApiKey!, livekitApiSecret!);
     let participants: any[] = [];
     try { participants = await roomService.listParticipants(roomName); }
     catch {
@@ -62,7 +76,7 @@ export async function POST(request: NextRequest) {
     const { data: profile } = await supabase.from("profiles").select("username,display_name").eq("id", identity).maybeSingle();
     const participantName = profile?.username || profile?.display_name || "VILABULB creator";
     const role = isHost ? "host" : requestedRole;
-    const token = new AccessToken(livekitApiKey, livekitApiSecret, {
+    const token = new AccessToken(livekitApiKey!, livekitApiSecret!, {
       identity, name: participantName, metadata: JSON.stringify({ role }), ttl: "4h"
     });
     token.addGrant({
@@ -71,7 +85,7 @@ export async function POST(request: NextRequest) {
       canSubscribe: true, canPublishData: true
     });
 
-    const serverUrl = /^wss?:\/\//i.test(livekitUrl) ? livekitUrl : `wss://${livekitUrl.replace(/^https?:\/\//i, "")}`;
+    const serverUrl = /^wss?:\/\//i.test(livekitUrl!) ? livekitUrl! : `wss://${livekitUrl!.replace(/^https?:\/\//i, "")}`;
     return NextResponse.json({ token: await token.toJwt(), serverUrl, role });
   } catch (error) {
     console.error("LiveKit token error:", error);
