@@ -217,7 +217,7 @@ export default function HomePage() {
   const handleAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!supabase) {
-      setAuthMessage("Supabase is not configured yet. Add the two environment variables in Netlify.");
+      setAuthMessage("Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_ANON_KEY and a Supabase URL in Vercel, then redeploy.");
       return;
     }
     setAuthBusy(true);
