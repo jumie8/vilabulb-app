@@ -61,10 +61,38 @@ export async function POST(request: NextRequest) {
     const httpUrl = livekitUrl!.replace(/^wss:/i, "https:").replace(/^ws:/i, "http:");
     const roomService = new RoomServiceClient(httpUrl, livekitApiKey!, livekitApiSecret!);
     let participants: any[] = [];
-    try { participants = await roomService.listParticipants(roomName); }
-    catch {
-      if (!isHost) return NextResponse.json({ error: "The host has not started the live stage yet. Please try again." }, { status: 409 });
-      await roomService.createRoom({ name: roomName });
+    try {
+      participants = await roomService.listParticipants(roomName);
+    } catch (roomError) {
+      const detail = roomError instanceof Error ? roomError.message : "LiveKit rejected the room-service request.";
+      console.error("LiveKit room-service authentication failed:", detail);
+      // A host may create a room if it does not exist. Distinguish a missing room
+      // from rejected credentials so a bad key/secret pair is not misreported.
+      const message = detail.toLowerCase();
+      const looksLikeAuthFailure =
+        message.includes("invalid token") ||
+        message.includes("unauthorized") ||
+        message.includes("authentication") ||
+        message.includes("permission denied") ||
+        message.includes("401") ||
+        message.includes("403");
+      if (looksLikeAuthFailure) {
+        return NextResponse.json({
+          error: "LiveKit rejected the server credentials. In Vercel, make sure LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET all come from the same LiveKit project, and that the full API secret was copied correctly. Update them in Production and redeploy."
+        }, { status: 502 });
+      }
+      if (!isHost) {
+        return NextResponse.json({ error: "The host has not started the live stage yet. Please try again." }, { status: 409 });
+      }
+      try {
+        await roomService.createRoom({ name: roomName });
+      } catch (createError) {
+        const createDetail = createError instanceof Error ? createError.message : "Unknown LiveKit room creation error";
+        console.error("LiveKit room creation failed:", createDetail);
+        return NextResponse.json({
+          error: "LiveKit could not create the room. Check that the LiveKit URL, API key and API secret belong to the same project."
+        }, { status: 502 });
+      }
     }
 
     stage = "preparing your livestream access token";
